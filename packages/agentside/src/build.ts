@@ -76,7 +76,8 @@ export async function prerenderHtml(options: PrerenderHtmlOptions): Promise<Prer
       if (isExcluded(path, exclude)) return;
       try {
         const html = await readFile(join(options.dir, file), "utf8");
-        const markdown = normalizeUnicode(htmlToMarkdown(html, options));
+        const converted = htmlToMarkdown(html, options);
+        const markdown = options.normalize ? normalizeUnicode(converted) : converted;
         const target = join(outDir, toMarkdownPath(path));
         await mkdir(dirname(target), { recursive: true });
         await writeFile(target, markdown);
@@ -99,18 +100,39 @@ export async function prerenderHtml(options: PrerenderHtmlOptions): Promise<Prer
   return pages;
 }
 
+function sectionTitle(segment: string) {
+  return segment.replace(/[-_]+/g, " ").replace(/^\w/, (letter) => letter.toUpperCase());
+}
+
 export function llmsTxt(
   pages: readonly PrerenderedPage[],
-  options: { readonly title: string; readonly description?: string | undefined; readonly siteUrl?: string | undefined }
+  options: {
+    readonly title: string;
+    readonly description?: string | undefined;
+    readonly siteUrl?: string | undefined;
+    readonly sections?: Readonly<Record<string, string>> | undefined;
+  }
 ) {
   const url = (path: string) => `${options.siteUrl ?? ""}${toMarkdownPath(path)}`;
+  const prefixes = Object.keys(options.sections ?? {}).sort((left, right) => right.length - left.length);
+  const groups = new Map<string, PrerenderedPage[]>();
+  for (const page of pages) {
+    const prefix = prefixes.find((candidate) => page.path === candidate || page.path.startsWith(`${candidate.replace(/\/$/, "")}/`));
+    const segment = page.path.split("/")[1] ?? "";
+    const isLeaf = page.path.split("/").length <= 2 && !pages.some((other) => other.path.startsWith(`${page.path}/`));
+    const title = prefix ? (options.sections?.[prefix] ?? "Pages") : isLeaf || !segment ? "Pages" : sectionTitle(segment);
+    groups.set(title, [...(groups.get(title) ?? []), page]);
+  }
+  const ordered = [...groups.entries()].sort(([left], [right]) => (left === "Pages" ? -1 : right === "Pages" ? 1 : 0));
   return [
     `# ${options.title}`,
     ...(options.description ? ["", `> ${options.description}`] : []),
-    "",
-    "## Pages",
-    "",
-    ...pages.map((page) => `- [${page.title || page.path}](${url(page.path)})${page.description ? `: ${page.description}` : ""}`),
+    ...ordered.flatMap(([title, items]) => [
+      "",
+      `## ${title}`,
+      "",
+      ...items.map((page) => `- [${page.title || page.path}](${url(page.path)})${page.description ? `: ${page.description}` : ""}`),
+    ]),
     "",
   ].join("\n");
 }
@@ -145,7 +167,24 @@ export function vercelRoutes(paths?: readonly string[]) {
   const pagePattern = nested ? `(${nested.join("|")})` : "((?!.*\\.).*[^/])";
   const routes = [
     { src: "^/(.+)\\.md$", headers: markdownHeaders, continue: true },
-    { src: `^/$|^/${pagePattern}/?$`, headers: { Vary: "Accept, User-Agent" }, continue: true },
+    ...(!paths || paths.includes("/")
+      ? [
+          {
+            src: "^/$",
+            headers: { Vary: "Accept, User-Agent", Link: '</index.md>; rel="alternate"; type="text/markdown"' },
+            continue: true,
+          },
+        ]
+      : []),
+    ...(!nested || nested.length > 0
+      ? [
+          {
+            src: `^/${pagePattern}/?$`,
+            headers: { Vary: "Accept, User-Agent", Link: '</$1.md>; rel="alternate"; type="text/markdown"' },
+            continue: true,
+          },
+        ]
+      : []),
     ...conditions.flatMap((condition) => [
       ...(!paths || paths.includes("/")
         ? [{ src: "^/$", has: [condition], dest: "/index.md", headers: markdownHeaders }]
@@ -156,4 +195,15 @@ export function vercelRoutes(paths?: readonly string[]) {
     ]),
   ];
   return { routes };
+}
+
+export async function applyVercelBuildOutput(options: { readonly outputDir?: string; readonly paths?: readonly string[] } = {}) {
+  const file = join(options.outputDir ?? ".vercel/output", "config.json");
+  const config = JSON.parse(await readFile(file, "utf8")) as { routes?: Record<string, unknown>[] };
+  const existing = config.routes ?? [];
+  const filesystem = existing.findIndex((route) => route["handle"] === "filesystem");
+  const { routes } = vercelRoutes(options.paths);
+  const insertAt = filesystem === -1 ? 0 : filesystem;
+  config.routes = [...existing.slice(0, insertAt), ...routes, ...existing.slice(insertAt)];
+  await writeFile(file, `${JSON.stringify(config, null, 2)}\n`);
 }

@@ -72,7 +72,10 @@ export interface PrerenderHtmlOptions extends HtmlToMarkdownOptions {
   readonly dir: string;
   readonly outDir?: string;
   readonly exclude?: readonly string[];
-  readonly llms?: { readonly title: string; readonly description?: string } | false;
+  readonly llms?:
+    | { readonly title: string; readonly description?: string; readonly sections?: Readonly<Record<string, string>> }
+    | false;
+  readonly normalize?: boolean;
 }
 
 export interface PrerenderedPage {

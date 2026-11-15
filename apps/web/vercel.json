@@ -11,9 +11,18 @@
       "continue": true
     },
     {
-      "src": "^/$|^/((?!.*\\.).*[^/])/?$",
+      "src": "^/$",
       "headers": {
-        "Vary": "Accept, User-Agent"
+        "Vary": "Accept, User-Agent",
+        "Link": "</index.md>; rel=\"alternate\"; type=\"text/markdown\""
+      },
+      "continue": true
+    },
+    {
+      "src": "^/((?!.*\\.).*[^/])/?$",
+      "headers": {
+        "Vary": "Accept, User-Agent",
+        "Link": "</$1.md>; rel=\"alternate\"; type=\"text/markdown\""
       },
       "continue": true
     },

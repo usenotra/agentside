@@ -88,7 +88,7 @@ export function agentside(config: AgentsideConfig) {
       }
 
       const accept = request.headers.get("accept");
-      const format = negotiateFormat(accept, config.accept);
+      const format = negotiateFormat(accept, config.accept ?? "contains");
       const agent = detectAgent(request.headers.get("user-agent"));
       if (format === "markdown" || agent) {
         const response = await render(request, pathname, agent);
