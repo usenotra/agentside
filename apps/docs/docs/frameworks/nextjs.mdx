@@ -22,7 +22,7 @@ export const config = {
 `NextRequest` extends the fetch `Request`, so it can be passed straight to `handle`. For HTML pages Agentside adds `Link` and `Vary` to the `NextResponse.next()` response and Next.js merges those headers into the rendered page.
 
 ```ts lib/agentside.ts
-import { agentside } from "agentside";
+import { agentside } from "@usenotra/agentside";
 
 import { getPost } from "@/lib/posts";
 

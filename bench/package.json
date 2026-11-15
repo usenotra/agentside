@@ -6,7 +6,7 @@
   "dependencies": {
     "@dualmark/core": "0.11.0",
     "@dualmark/nextjs": "0.11.0",
-    "agentside": "workspace:*",
+    "@usenotra/agentside": "workspace:*",
     "mitata": "1.0.34"
   }
 }

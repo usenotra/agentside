@@ -7,11 +7,11 @@ Serve markdown versions of your pages to AI agents and A/B test what they read. 
 [agentside.usenotra.com](https://agentside.usenotra.com) · [Docs](https://agentside.usenotra.com/docs)
 
 ```sh
-bun add agentside
+bun add @usenotra/agentside
 ```
 
 ```ts
-import { agentside, remote } from "agentside";
+import { agentside, remote } from "@usenotra/agentside";
 
 const md = agentside({
   routes: {
@@ -41,7 +41,7 @@ Agentside does what [Dualmark](https://github.com/dodopayments/dualmark) does, w
 - **Remote sources.** `remote()` fetches markdown from a CMS or another deployment, with a timeout and retries on 5xx and network errors.
 - **Per-agent variants.** Show ChatGPT one version and Claude another, with automatic fallback to the original if the variant fails. Every response says which variant it served (`X-Agentside-Variant`) and `onServe` reports each exposure.
 - **Not tied to Next.js.** One fetch-standard handler for TanStack Start, Astro, Hono, Next.js middleware, Bun and Workers.
-- **Typed errors.** `agentside/effect` exposes the Effect program and its `NotFound`, `RenderFailed`, `RemoteFailed` and `SourceTimeout` errors.
+- **Typed errors.** `@usenotra/agentside/effect` exposes the Effect program and its `NotFound`, `RenderFailed`, `RemoteFailed` and `SourceTimeout` errors.
 
 ## Benchmarks
 
@@ -68,10 +68,10 @@ Failure behaviour from the same script:
 
 ## Prerendering
 
-`agentside/build` writes every twin to a static file at build time, so a CDN can serve `/pricing.md` without running any code. A twin that throws fails the build and lists every failing path; a twin that returns `null` is skipped.
+`@usenotra/agentside/build` writes every twin to a static file at build time, so a CDN can serve `/pricing.md` without running any code. A twin that throws fails the build and lists every failing path; a twin that returns `null` is skipped.
 
 ```ts
-import { prerender } from "agentside/build";
+import { prerender } from "@usenotra/agentside/build";
 
 await prerender({ routes }, { outDir: "dist/client", paths: ["/", "/pricing", "/blog/hello"] });
 ```
@@ -82,7 +82,7 @@ await prerender({ routes }, { outDir: "dist/client", paths: ["/", "/pricing", "/
 
 | Path | What |
 | --- | --- |
-| `packages/agentside` | The SDK, published to npm as `agentside` |
+| `packages/agentside` | The SDK, published to npm as `@usenotra/agentside` |
 | `apps/web` | Marketing site (Astro) |
 | `apps/docs` | Documentation (Blume) |
 | `bench` | Benchmarks against Dualmark |

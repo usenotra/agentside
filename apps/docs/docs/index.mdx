@@ -10,7 +10,7 @@ Agentside is a small SDK that answers AI agents with a markdown version of your 
 It is built on [Effect](https://effect.website) and only depends on the fetch-standard `Request` and `Response`, so one config runs in TanStack Start, Astro, Next.js, Hono, Cloudflare Workers, Bun and anything else that speaks fetch.
 
 ```ts
-import { agentside } from "agentside";
+import { agentside } from "@usenotra/agentside";
 
 const twins = agentside({
   routes: {
@@ -28,7 +28,7 @@ const response = await twins.handle(request, () => app.fetch(request));
 - **A/B variants per agent** so you can serve a different twin to a vendor, a purpose such as search or a single agent and measure what happens.
 - **Error handling that protects agents** from broken twins. A failing variant falls back to control and a failing twin falls back to your HTML page.
 - **Caching** with a TTL, request deduplication and no caching of failures.
-- **Typed errors** and the raw Effect program through `agentside/effect`.
+- **Typed errors** and the raw Effect program through `@usenotra/agentside/effect`.
 
 <CardGroup cols={2}>
   <Card title="Quickstart" href="/quickstart" icon="rocket">

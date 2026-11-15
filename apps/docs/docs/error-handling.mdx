@@ -57,7 +57,7 @@ agentside({
 
 ## Typed errors
 
-All errors are Effect tagged errors with a `_tag` you can switch on. They are exported from both `agentside` and `agentside/effect`.
+All errors are Effect tagged errors with a `_tag` you can switch on. They are exported from both `@usenotra/agentside` and `@usenotra/agentside/effect`.
 
 | Error | Fields | Raised when |
 | --- | --- | --- |
@@ -67,7 +67,7 @@ All errors are Effect tagged errors with a `_tag` you can switch on. They are ex
 | `SourceTimeout` | `path`, `timeoutMs` | A source took longer than `timeoutMs`. |
 
 ```ts
-import type { ServeError } from "agentside";
+import type { ServeError } from "@usenotra/agentside";
 
 function describe(error: ServeError) {
   switch (error._tag) {

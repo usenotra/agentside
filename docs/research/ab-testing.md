@@ -1,6 +1,6 @@
 # A/B testing what agents read
 
-Status: research draft, November 2026. Per-agent variants already ship in `agentside` (see "What exists today"). Everything after that section is a proposal.
+Status: research draft, November 2026. Per-agent variants already ship in `@usenotra/agentside` (see "What exists today"). Everything after that section is a proposal.
 
 ## The question we want to answer
 
@@ -38,7 +38,7 @@ So the experiments that give answers within days are the ones aimed at user-acti
 `variants` lets a route serve a different source to selected agents:
 
 ```ts
-import { agentside, remote } from "agentside";
+import { agentside, remote } from "@usenotra/agentside";
 
 const md = agentside({
   routes: {
@@ -107,7 +107,7 @@ Notra would be the first implementation of that endpoint (which also links expos
 ### The "give it two blog posts" flow
 
 ```sh
-npx agentside ab create /blog/launch \
+npx @usenotra/agentside ab create /blog/launch \
   --a ./posts/launch.md \
   --b ./posts/launch-shorter.md \
   --design crossover --engines openai,anthropic --days 14

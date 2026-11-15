@@ -23,7 +23,7 @@ export default defineConfig({
     copyright: "Agentside by Notra",
     links: [
       { href: "https://usenotra.com", label: "Notra" },
-      { href: "https://www.npmjs.com/package/agentside", label: "npm" },
+      { href: "https://www.npmjs.com/package/@usenotra/agentside", label: "npm" },
     ],
   },
   deployment: {

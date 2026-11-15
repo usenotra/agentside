@@ -35,7 +35,7 @@ When Agentside answers with markdown it returns the `Response` directly and the 
 Put `agentsideMiddleware` before middleware that redirects to a login page, and add your API prefix to `skip` so server functions are never negotiated.
 
 ```ts src/lib/agentside.ts
-import { agentside } from "agentside";
+import { agentside } from "@usenotra/agentside";
 
 export const twins = agentside({
   routes: {

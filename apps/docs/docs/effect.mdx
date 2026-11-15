@@ -5,10 +5,10 @@ sidebar:
   order: 8
 ---
 
-`agentside()` is a thin promise wrapper around an Effect program. If your app already runs on Effect, import that program from `agentside/effect` and compose it with your own services, schedules and error handling.
+`agentside()` is a thin promise wrapper around an Effect program. If your app already runs on Effect, import that program from `@usenotra/agentside/effect` and compose it with your own services, schedules and error handling.
 
 ```ts
-import { CONTROL, make, markdownResponse, NotFound, RemoteFailed, RenderFailed, SourceTimeout } from "agentside/effect";
+import { CONTROL, make, markdownResponse, NotFound, RemoteFailed, RenderFailed, SourceTimeout } from "@usenotra/agentside/effect";
 ```
 
 ## make
@@ -30,8 +30,8 @@ const server = yield* make(config);
 
 ```ts
 import { Effect } from "effect";
-import { detectAgent, type AgentsideConfig } from "agentside";
-import { make, markdownResponse } from "agentside/effect";
+import { detectAgent, type AgentsideConfig } from "@usenotra/agentside";
+import { make, markdownResponse } from "@usenotra/agentside/effect";
 
 const config: AgentsideConfig = {
   routes: {

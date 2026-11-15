@@ -1,6 +1,6 @@
 import { detectAIBot, negotiateFormat as dmNegotiate, normalizeUnicode as dmNormalize } from "@dualmark/core";
 import { createDualmarkRouteHandler } from "@dualmark/nextjs";
-import { agentside, detectAgent, negotiateFormat, normalizeUnicode, remote } from "agentside";
+import { agentside, detectAgent, negotiateFormat, normalizeUnicode, remote } from "@usenotra/agentside";
 import { bench, do_not_optimize, group, run, summary } from "mitata";
 
 const ROUTE_COUNT = 200;
