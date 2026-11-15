@@ -312,6 +312,10 @@ const failures = [
               </tbody>
             </table>
           </div>
+          <p class="bench-aside">
+            Do these latencies matter? Honestly, probably not at this scale. A single network round trip to your
+            server takes thousands of times longer than any of these numbers. We optimized them anyway.
+          </p>
           <p class="bench-foot"><a class="text-link" href={BENCHMARKS_URL}>Run the benchmark harness yourself</a></p>
         </div>
       </section>
@@ -690,6 +694,13 @@ const failures = [
   .vendor img {
     flex-shrink: 0;
     border-radius: 0.25rem;
+  }
+
+  .bench-aside {
+    margin: 1.25rem 0 0;
+    max-width: 40rem;
+    color: var(--muted);
+    font-style: italic;
   }
 
   .bench-foot {
