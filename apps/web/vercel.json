@@ -11,6 +11,13 @@
       "continue": true
     },
     {
+      "src": "^/$|^/((?!.*\\.).*[^/])/?$",
+      "headers": {
+        "Vary": "Accept, User-Agent"
+      },
+      "continue": true
+    },
+    {
       "src": "^/$",
       "has": [
         {

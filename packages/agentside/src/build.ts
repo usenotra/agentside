@@ -145,6 +145,7 @@ export function vercelRoutes(paths?: readonly string[]) {
   const pagePattern = nested ? `(${nested.join("|")})` : "((?!.*\\.).*[^/])";
   const routes = [
     { src: "^/(.+)\\.md$", headers: markdownHeaders, continue: true },
+    { src: `^/$|^/${pagePattern}/?$`, headers: { Vary: "Accept, User-Agent" }, continue: true },
     ...conditions.flatMap((condition) => [
       ...(!paths || paths.includes("/")
         ? [{ src: "^/$", has: [condition], dest: "/index.md", headers: markdownHeaders }]
