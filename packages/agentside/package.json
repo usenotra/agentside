@@ -1,6 +1,6 @@
 {
   "name": "@usenotra/agentside",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Serve markdown to AI agents and A/B test what they read. Built on Effect. By Notra.",
   "keywords": [
     "ai",
