@@ -140,7 +140,7 @@ export function vercelRoutes(paths?: readonly string[]) {
   const rewrites = conditions.flatMap((condition) => [
     ...(!paths || paths.includes("/") ? [{ source: "/", has: [condition], destination: "/index.md" }] : []),
     ...(!nested
-      ? [{ source: "/((?!.*\\.)[^?]*[^/])/?", has: [condition], destination: "/$1.md" }]
+      ? [{ source: "/:path((?!.*\\.).*[^/])", has: [condition], destination: "/:path.md" }]
       : nested.length > 0
         ? [{ source: `/:path(${nested.join("|")})`, has: [condition], destination: "/:path.md" }]
         : []),
