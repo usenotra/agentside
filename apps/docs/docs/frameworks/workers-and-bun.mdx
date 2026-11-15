@@ -1,0 +1,61 @@
+---
+title: Cloudflare Workers and Bun.serve
+description: Put Agentside in front of a plain fetch handler on Cloudflare Workers or Bun.
+---
+
+Any runtime with a `fetch(request)` entry point can wrap its handler in `handle`.
+
+## Cloudflare Workers
+
+With static assets, the Worker has to run before the asset handler so it can negotiate every request. Set `run_worker_first` in your Wrangler config.
+
+```jsonc wrangler.jsonc
+{
+  "name": "acme",
+  "main": "src/worker.ts",
+  "assets": { "directory": "./dist", "binding": "ASSETS", "run_worker_first": true }
+}
+```
+
+```ts src/worker.ts
+import { agentside, remote } from "agentside";
+
+const twins = agentside({
+  routes: {
+    "/": "# Acme\n\nAcme sends invoices your customers actually pay.",
+    "/docs/[...path]": remote(({ params }) => `https://cms.acme.dev/docs/${params.path}.md`),
+  },
+});
+
+export default {
+  fetch(request: Request, env: { ASSETS: Fetcher }) {
+    return twins.handle(request, () => env.ASSETS.fetch(request));
+  },
+};
+```
+
+Responses from `env.ASSETS.fetch` have immutable headers. Agentside detects that and copies the response before it adds the `Link` and `Vary` headers, so no extra code is needed.
+
+The in-memory cache lives per isolate. Rely on `Cache-Control` for caching across isolates and regions.
+
+## Bun.serve
+
+```ts server.ts
+import { agentside } from "agentside";
+
+import { app } from "./app";
+
+const twins = agentside({
+  routes: {
+    "/": "# Acme\n\nAcme sends invoices your customers actually pay.",
+    "/pricing": () => Bun.file("content/pricing.md").text(),
+  },
+});
+
+Bun.serve({
+  port: 3000,
+  fetch: (request) => twins.handle(request, () => app(request)),
+});
+```
+
+`app` is whatever renders your HTML, for example another framework's fetch handler.

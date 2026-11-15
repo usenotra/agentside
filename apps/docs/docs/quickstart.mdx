@@ -1,0 +1,65 @@
+---
+title: Quickstart
+description: Install Agentside, describe your markdown twins and mount the handler in front of your app.
+sidebar:
+  order: 1
+---
+
+## Install
+
+```bash
+npm install agentside
+```
+
+Agentside ships ESM with TypeScript types and depends on `effect`.
+
+## Describe your twins
+
+Create one module that owns the config. Each key in `routes` is a page path and each value is the source of its markdown twin.
+
+```ts agentside.ts
+import { agentside, remote } from "agentside";
+
+export const twins = agentside({
+  routes: {
+    "/": "# Acme\n\nAcme sends invoices your customers actually pay.",
+    "/pricing": () => renderPricingMarkdown(),
+    "/blog/[slug]": ({ params }) => getPost(params.slug)?.markdown ?? null,
+    "/docs/[...path]": remote(({ params }) => `https://cms.acme.dev/docs/${params.path}.md`),
+  },
+  skip: ["/api", "/assets"],
+});
+```
+
+`agentside()` validates the routes and builds the cache synchronously, so create it once at module scope and reuse it for every request.
+
+## Mount the handler
+
+`handle(request, next)` takes a fetch `Request` and a function that renders your page. It returns the markdown twin when the request asks for one and otherwise calls `next()` and decorates the HTML response.
+
+```ts
+const response = await twins.handle(request, () => renderPage(request));
+```
+
+The [framework guides](/frameworks) show where this line goes in each framework.
+
+## Try it
+
+```bash
+curl -i http://localhost:3000/pricing.md
+curl -i -H "Accept: text/markdown" http://localhost:3000/pricing
+curl -i -A "GPTBot/1.2" http://localhost:3000/pricing
+curl -I http://localhost:3000/pricing
+```
+
+The first three return `Content-Type: text/markdown` with an `X-Agentside-Variant` header. The last returns your HTML page with `Link: </pricing.md>; rel="alternate"; type="text/markdown"`.
+
+## Serve a twin directly
+
+When you already route `.md` URLs yourself, call `serve` instead. It always treats the request as an explicit markdown request and answers with the twin, a markdown 404 or a 503.
+
+```ts
+export const GET = (request: Request) => twins.serve(request);
+```
+
+Pass a pathname as the second argument when the request URL differs from the page path, for example `twins.serve(request, "/pricing")`.

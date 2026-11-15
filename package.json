@@ -1,0 +1,21 @@
+{
+  "name": "agentside-monorepo",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.4.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "bench"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "check-types": "turbo run check-types",
+    "bench": "bun run --cwd bench bench"
+  },
+  "devDependencies": {
+    "turbo": "2.11.10",
+    "typescript": "7.0.2"
+  }
+}

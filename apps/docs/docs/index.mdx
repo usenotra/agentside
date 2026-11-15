@@ -1,0 +1,44 @@
+---
+title: Introduction
+description: Agentside serves markdown twins of your pages to AI agents and lets you A/B test what each agent reads.
+sidebar:
+  order: 0
+---
+
+Agentside is a small SDK that answers AI agents with a markdown version of your pages. People keep getting your HTML from the same URL, while agents that ask for markdown or identify themselves by user agent get a clean twin that is cheaper to read and easier to cite.
+
+It is built on [Effect](https://effect.website) and only depends on the fetch-standard `Request` and `Response`, so one config runs in TanStack Start, Astro, Next.js, Hono, Cloudflare Workers, Bun and anything else that speaks fetch.
+
+```ts
+import { agentside } from "agentside";
+
+const twins = agentside({
+  routes: {
+    "/": "# Acme\n\nAcme sends invoices your customers actually pay.",
+    "/pricing": () => renderPricingMarkdown(),
+  },
+});
+
+const response = await twins.handle(request, () => app.fetch(request));
+```
+
+## What you get
+
+- **Content negotiation** for `.md` URLs, `Accept: text/markdown` and known AI agent user agents, with a `Link` header on HTML pages that have a twin.
+- **A/B variants per agent** so you can serve a different twin to a vendor, a purpose such as search or a single agent and measure what happens.
+- **Error handling that protects agents** from broken twins. A failing variant falls back to control and a failing twin falls back to your HTML page.
+- **Caching** with a TTL, request deduplication and no caching of failures.
+- **Typed errors** and the raw Effect program through `agentside/effect`.
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" href="/quickstart" icon="rocket">
+    Install Agentside and serve your first twin.
+  </Card>
+  <Card title="Migrating from Dualmark" href="/migrating-from-dualmark" icon="arrow-right-left">
+    Map your Dualmark config to Agentside routes.
+  </Card>
+</CardGroup>
+
+## Benchmarks
+
+We are benchmarking Agentside against Dualmark on negotiation, cached reads and cold renders. The results and the harness will be published in the [benchmarks section of the README](https://github.com/usenotra/agentside#benchmarks).

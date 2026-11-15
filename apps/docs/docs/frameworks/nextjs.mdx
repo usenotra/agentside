@@ -1,0 +1,50 @@
+---
+title: Next.js middleware
+description: Serve markdown twins from Next.js middleware or proxy.ts.
+---
+
+Next.js middleware runs before routing, so it can answer `.md` URLs and negotiated requests without any route handlers. On Next.js 16 the file is `proxy.ts` and the export is named `proxy`. On Next.js 15 and earlier it is `middleware.ts` with an export named `middleware`.
+
+```ts proxy.ts
+import { NextResponse, type NextRequest } from "next/server";
+
+import { twins } from "@/lib/agentside";
+
+export function proxy(request: NextRequest) {
+  return twins.handle(request, async () => NextResponse.next());
+}
+
+export const config = {
+  matcher: ["/((?!_next/|api/|favicon.ico).*)"],
+};
+```
+
+`NextRequest` extends the fetch `Request`, so it can be passed straight to `handle`. For HTML pages Agentside adds `Link` and `Vary` to the `NextResponse.next()` response and Next.js merges those headers into the rendered page.
+
+```ts lib/agentside.ts
+import { agentside } from "agentside";
+
+import { getPost } from "@/lib/posts";
+
+export const twins = agentside({
+  routes: {
+    "/": "# Acme\n\nAcme sends invoices your customers actually pay.",
+    "/blog/[slug]": async ({ params }) => (await getPost(params.slug))?.markdown ?? null,
+  },
+});
+```
+
+## Serving from a route handler
+
+If you would rather keep middleware out of it, rewrite `.md` URLs to a route handler and call `serve` there.
+
+```ts app/md/[...path]/route.ts
+import { twins } from "@/lib/agentside";
+
+export async function GET(request: Request, { params }: { params: Promise<{ path: string[] }> }) {
+  const { path } = await params;
+  return twins.serve(request, `/${path.join("/")}`);
+}
+```
+
+This only covers explicit `.md` URLs. Negotiation by `Accept` and user agent still needs the middleware.

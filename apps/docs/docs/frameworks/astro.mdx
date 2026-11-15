@@ -1,0 +1,33 @@
+---
+title: Astro middleware
+description: Serve markdown twins from Astro middleware on on-demand rendered pages.
+---
+
+Astro middleware receives the request as `context.request` and renders the page through `next()`.
+
+```ts src/middleware.ts
+import { defineMiddleware } from "astro:middleware";
+
+import { twins } from "./lib/agentside";
+
+export const onRequest = defineMiddleware((context, next) => twins.handle(context.request, () => next()));
+```
+
+```ts src/lib/agentside.ts
+import { agentside } from "agentside";
+import { getEntry } from "astro:content";
+
+export const twins = agentside({
+  routes: {
+    "/": "# Acme\n\nAcme sends invoices your customers actually pay.",
+    "/blog/[slug]": async ({ params }) => (await getEntry("blog", params.slug))?.body ?? null,
+  },
+  skip: ["/_astro", "/_image"],
+});
+```
+
+## On-demand rendering
+
+Middleware only sees real requests on pages that render on demand. Prerendered pages run middleware once at build time, without the visitor's `Accept` or `User-Agent` headers, so negotiation cannot happen there. Use `output: "server"` with an adapter, or set `export const prerender = false` on the pages that should have twins.
+
+`.md` URLs do not need their own pages. The middleware answers them before Astro looks for a route.

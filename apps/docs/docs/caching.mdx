@@ -1,0 +1,44 @@
+---
+title: Caching
+description: How Agentside caches rendered twins in memory and how to tune or disable the cache.
+sidebar:
+  order: 6
+---
+
+Rendered twins are kept in an in-memory Effect cache so repeated reads skip your render function and the network.
+
+```ts
+agentside({
+  routes,
+  cache: { ttlMs: 60_000, capacity: 5000 },
+});
+```
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `cache.ttlMs` | `300000` | How long a successful render stays cached, in milliseconds. |
+| `cache.capacity` | `1000` | The maximum number of cached twins. |
+| `cache: false` | | Render on every request. |
+
+## What is cached
+
+- **Successes only.** Errors and missing twins expire immediately, so a failing source is retried on the next request.
+- **Per path and variant.** `/pricing` for the control and `/pricing` for `pricing-openai` are separate entries. The request itself is not part of the key.
+- **Concurrent requests share one render.** When ten agents ask for the same uncached twin at once, the source runs once and all ten get its result.
+
+The `cached` field of each [`ServeEvent`](/variants#exposure-events) tells you whether a response came from the cache.
+
+## Output that depends on the request
+
+Because the request is not part of the cache key, the first request to a path decides what the next ones get until the entry expires. When a source reads headers, cookies or the agent to build its output, model each output as a [variant](/variants) or set `cache: false`.
+
+## HTTP caching
+
+The in-memory cache lives in one process. Markdown responses also carry `Cache-Control: public, max-age=3600` and `Vary: Accept, User-Agent` so a CDN can cache them safely. Change the header with `cacheControl`.
+
+```ts
+agentside({
+  routes,
+  cacheControl: "public, max-age=300, stale-while-revalidate=3600",
+});
+```

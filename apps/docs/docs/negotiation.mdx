@@ -1,0 +1,86 @@
+---
+title: Content negotiation
+description: How Agentside decides whether a request gets markdown or HTML and which headers it sets.
+sidebar:
+  order: 3
+---
+
+`handle(request, next)` decides between your HTML page and the markdown twin from the URL, the `Accept` header and the `User-Agent` header. Only `GET` and `HEAD` requests are considered, and paths under a `skip` prefix go straight to `next()`.
+
+## Decision order
+
+1. **The path ends in `.md`.** The request is explicit, so Agentside serves the twin. A missing twin gets a markdown 404 and a failing twin gets a markdown 503.
+2. **`Accept` prefers `text/markdown` or the user agent is a known AI agent.** Agentside serves the twin when it exists. When it is missing or fails, the request falls through to `next()` and the visitor gets your HTML page.
+3. **`Accept` rules out both HTML and markdown.** Agentside answers `406 Not Acceptable`.
+4. **Everything else** gets your HTML page from `next()`. When a route matches the path, the response gets a `Link` header pointing at the twin.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: text/html; charset=utf-8
+Link: </pricing.md>; rel="alternate"; type="text/markdown"
+Vary: Accept
+```
+
+Set `linkHeader: false` to leave HTML responses without the `Link` header.
+
+## The Accept header
+
+`negotiateFormat(accept)` returns `"markdown"`, `"html"` or `null`. A missing header means HTML. Otherwise Agentside weighs the q-values of `text/markdown` against `text/html` and `application/xhtml+xml`, with `*/*` and `text/*` counting for whichever side has no specific entry. Markdown has to score strictly higher, so a tie goes to HTML.
+
+| Accept | Result |
+| --- | --- |
+| *(none)* | `html` |
+| `text/html,*/*;q=0.8` | `html` |
+| `text/markdown` | `markdown` |
+| `text/markdown, text/html;q=0.9` | `markdown` |
+| `text/html, text/markdown` | `html` |
+| `application/json` | `null`, answered with 406 |
+
+## Agent detection
+
+`detectAgent(userAgent)` matches the user agent against a list of known AI agents, case insensitively, and returns `{ name, vendor, purpose }` or `null`. Purposes are `"training"`, `"search"` and `"user-action"`.
+
+| Agent | Vendor | Purpose |
+| --- | --- | --- |
+| ChatGPT-User | OpenAI | user-action |
+| OAI-SearchBot | OpenAI | search |
+| GPTBot | OpenAI | training |
+| Claude-User, Claude-Web | Anthropic | user-action |
+| Claude-SearchBot | Anthropic | search |
+| ClaudeBot, Anthropic-ai | Anthropic | training |
+| Perplexity-User | Perplexity | user-action |
+| PerplexityBot | Perplexity | search |
+| MistralAI-User | Mistral | user-action |
+| Google-Extended, GoogleOther | Google | training |
+| Applebot-Extended | Apple | training |
+| Meta-ExternalAgent | Meta | training |
+| Meta-ExternalFetcher | Meta | user-action |
+| DuckAssistBot | DuckDuckGo | search |
+| YouBot | You.com | search |
+| cohere-ai | Cohere | training |
+| Amazonbot | Amazon | training |
+| Bytespider | ByteDance | training |
+| CCBot | Common Crawl | training |
+| Diffbot | Diffbot | training |
+| ImagesiftBot | ImageSift | training |
+| Omgilibot | Webz.io | training |
+
+The full list is exported as `KNOWN_AGENTS`.
+
+## Markdown response headers
+
+Every markdown response carries the same headers.
+
+| Header | Value |
+| --- | --- |
+| `Content-Type` | `text/markdown; charset=utf-8` |
+| `X-Agentside-Variant` | The variant id that was served, `control` by default. |
+| `X-Markdown-Tokens` | A whitespace-based token estimate of the body. |
+| `Cache-Control` | `public, max-age=3600`, or your `cacheControl`. |
+| `Vary` | `Accept, User-Agent` |
+| `X-Robots-Tag` | `noindex`, unless you set `noindex: false`. |
+| `X-Content-Type-Options` | `nosniff` |
+
+`HEAD` requests get the same status and headers with an empty body.
+
+`noindex` defaults to on so search engines keep indexing your HTML page instead of its twin. HTML responses that fall through after a negotiated request get `Vary: Accept, User-Agent`, so shared caches never hand a twin to a browser or a page to an agent.

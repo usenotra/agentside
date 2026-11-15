@@ -1,0 +1,12 @@
+{
+  "name": "@agentside/bench",
+  "private": true,
+  "type": "module",
+  "scripts": { "bench": "bun run index.ts" },
+  "dependencies": {
+    "@dualmark/core": "0.11.0",
+    "@dualmark/nextjs": "0.11.0",
+    "agentside": "workspace:*",
+    "mitata": "1.0.34"
+  }
+}

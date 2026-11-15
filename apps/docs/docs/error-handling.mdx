@@ -1,0 +1,84 @@
+---
+title: Error handling
+description: Fallbacks, retries, timeouts and typed errors that keep a broken twin from reaching an agent.
+sidebar:
+  order: 5
+---
+
+A markdown twin is a second copy of your content, so it should never make a page worse for the agent reading it. Agentside picks the most useful answer it can still give whenever a source fails.
+
+## Fallbacks
+
+| What failed | Negotiated request | Explicit `.md` request |
+| --- | --- | --- |
+| A variant source | Control twin | Control twin |
+| No route matches | HTML page from `next()` | Markdown 404 |
+| The source returned `null` or the remote answered 404 | HTML page from `next()` | Markdown 404 |
+| The source threw, failed or timed out | HTML page from `next()` | Markdown 503 with `Retry-After: 30` |
+
+A negotiated request is one that Agentside answered with markdown because of the `Accept` header or the user agent. Those visitors asked for your page, so a broken twin falls back to the page instead of an error.
+
+## Retries
+
+Remote sources retry network errors and 5xx responses with exponential backoff that starts at 100 milliseconds. Other 4xx responses fail immediately because retrying will not change them.
+
+```ts
+agentside({
+  routes,
+  retries: 3,
+});
+```
+
+`retries` defaults to `2` and only applies to `remote()` sources. Set it to `0` to fail on the first error.
+
+## Timeouts
+
+Every function and remote source is bounded by `timeoutMs`, which defaults to `5000`. The timeout covers the whole load including retries and fails with `SourceTimeout` when it runs out.
+
+```ts
+agentside({
+  routes,
+  timeoutMs: 1500,
+});
+```
+
+Remote requests are aborted when the timeout fires. Local functions cannot be cancelled, so their result is ignored instead.
+
+## Reporting
+
+`onError(error, path)` receives one of the typed errors below. It runs for every failing variant, even when the variant only returned `null`, and for every failing control twin except a missing one.
+
+```ts
+agentside({
+  routes,
+  onError: (error, path) => logger.warn("agentside", { path, error }),
+});
+```
+
+## Typed errors
+
+All errors are Effect tagged errors with a `_tag` you can switch on. They are exported from both `agentside` and `agentside/effect`.
+
+| Error | Fields | Raised when |
+| --- | --- | --- |
+| `NotFound` | `path` | No route matches or the source returned `null`. |
+| `RenderFailed` | `path`, `cause` | A local function threw or rejected. |
+| `RemoteFailed` | `path`, `url`, `status?`, `cause?` | A remote request failed or returned a non-2xx status other than 404. |
+| `SourceTimeout` | `path`, `timeoutMs` | A source took longer than `timeoutMs`. |
+
+```ts
+import type { ServeError } from "agentside";
+
+function describe(error: ServeError) {
+  switch (error._tag) {
+    case "RemoteFailed":
+      return `upstream ${error.url} answered ${error.status ?? "nothing"}`;
+    case "SourceTimeout":
+      return `timed out after ${error.timeoutMs}ms`;
+    default:
+      return error._tag;
+  }
+}
+```
+
+Failures are never cached, so the next request tries the source again.

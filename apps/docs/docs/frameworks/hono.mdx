@@ -1,0 +1,38 @@
+---
+title: Hono
+description: Serve markdown twins from a Hono middleware.
+---
+
+Register Agentside as the first middleware. `c.req.raw` is the fetch `Request` and `c.res` holds the response once `next()` has run.
+
+```ts src/index.ts
+import { Hono } from "hono";
+
+import { twins } from "./agentside";
+
+const app = new Hono();
+
+app.use("*", (c, next) =>
+  twins.handle(c.req.raw, async () => {
+    await next();
+    return c.res;
+  })
+);
+
+app.get("/pricing", (c) => c.html(renderPricingPage()));
+
+export default app;
+```
+
+```ts src/agentside.ts
+import { agentside } from "agentside";
+
+export const twins = agentside({
+  routes: {
+    "/pricing": () => renderPricingMarkdown(),
+  },
+  skip: ["/api"],
+});
+```
+
+When Agentside answers with markdown, the middleware returns that response and the route handler never runs.

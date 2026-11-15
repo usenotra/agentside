@@ -1,0 +1,637 @@
+---
+import { Code } from "astro:components";
+import "../styles/global.css";
+
+const GITHUB_URL = "https://github.com/usenotra/agentside";
+const DOCS_URL = "https://docs.agentside.dev";
+const NOTRA_URL = "https://usenotra.com";
+const BENCHMARKS_URL = `${GITHUB_URL}#benchmarks`;
+
+const title = "Agentside by Notra: markdown twins for AI agents";
+const description =
+  "Agentside serves a markdown version of your pages to AI agents and lets you A/B test what each agent reads. It is built on Effect and runs anywhere that speaks fetch.";
+
+const themes = { light: "github-light", dark: "github-dark" };
+
+const setup = `import { agentside, remote } from "agentside";
+
+export const twins = agentside({
+  routes: {
+    "/": "# Acme\\n\\nAcme sends invoices your customers actually pay.",
+    "/pricing": () => renderPricingMarkdown(),
+    "/blog/[slug]": ({ params }) => getPost(params.slug)?.markdown ?? null,
+    "/docs/[...path]": remote(({ params }) => \`https://cms.acme.dev/docs/\${params.path}.md\`),
+  },
+  skip: ["/api", "/assets"],
+});
+
+export const onRequest = (context, next) => twins.handle(context.request, () => next());`;
+
+const variants = `agentside({
+  routes: { "/pricing": () => renderPricingMarkdown() },
+  variants: {
+    "/pricing": [
+      { id: "pricing-search", purposes: ["search"], source: remote("https://cms.acme.dev/pricing-v2.md") },
+      { id: "pricing-short", agents: ["ChatGPT-User", "Claude-User"], source: shortPricing },
+    ],
+  },
+  onServe: (event) => analytics.track("agent_read", event),
+});`;
+
+const exposure = `{
+  "path": "/pricing",
+  "variant": "pricing-search",
+  "agent": { "name": "OAI-SearchBot", "vendor": "OpenAI", "purpose": "search" },
+  "status": 200,
+  "cached": true,
+  "durationMs": 0.21
+}`;
+
+const negotiation = [
+  {
+    request: "GET /pricing.md",
+    response: "200 text/markdown",
+    body: "An explicit .md URL always asks for the twin. A missing twin answers with a markdown 404 instead of your HTML error page.",
+  },
+  {
+    request: "Accept: text/markdown",
+    response: "200 text/markdown",
+    body: "Clients that prefer markdown in their Accept header get it from the same URL, with q-values weighed against text/html.",
+  },
+  {
+    request: "User-Agent: GPTBot/1.2",
+    response: "200 text/markdown",
+    body: "Known AI agents are detected by user agent and tagged with a vendor and a purpose of training, search or user action.",
+  },
+  {
+    request: "Accept: text/html",
+    response: "200 text/html + Link",
+    body: "Browsers get your page untouched. When a twin exists it carries a Link header with rel=\"alternate\" so agents can find it.",
+  },
+];
+
+const failures = [
+  {
+    title: "A failing variant falls back to control",
+    body: "If the experiment source throws or times out, the agent reads your control twin and onError tells you why.",
+  },
+  {
+    title: "A failing twin falls back to HTML",
+    body: "A negotiated request whose twin is missing or broken gets your regular page, so agents never see a 404 or a 500 you did not choose.",
+  },
+  {
+    title: "Explicit .md URLs answer honestly",
+    body: "A missing twin returns 404 and a broken one returns 503 with Retry-After, both as markdown that an agent can read.",
+  },
+  {
+    title: "Remote sources retry and time out",
+    body: "Network errors and 5xx responses retry with exponential backoff, and every source has a timeout that defaults to five seconds.",
+  },
+  {
+    title: "Successes are cached and failures are not",
+    body: "Twins live in an Effect cache with a five minute TTL. Concurrent requests for the same twin share a single render.",
+  },
+  {
+    title: "Typed errors when you want them",
+    body: "agentside/effect exposes NotFound, RenderFailed, RemoteFailed and SourceTimeout as tagged errors you can match on.",
+  },
+];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="wrap header-inner">
+        <a class="brand" href="/" aria-label="Agentside home">
+          <img src="/logo.svg" alt="" width="28" height="28" />
+          <span>Agentside</span>
+        </a>
+        <nav class="nav" aria-label="Main">
+          <a href={DOCS_URL}>Docs</a>
+          <a href={BENCHMARKS_URL}>Benchmarks</a>
+          <a href={GITHUB_URL}>GitHub</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="wrap hero-inner">
+          <p class="eyebrow">Agentside by Notra</p>
+          <h1>Give AI agents the markdown version of every page</h1>
+          <p class="lede">
+            Agentside serves a markdown twin of your pages to the agents that read your site and lets you A/B test what
+            each of them sees. It is built on Effect and runs in any framework that speaks fetch.
+          </p>
+          <div class="actions">
+            <a class="button primary" href={`${DOCS_URL}/quickstart`}>Read the quickstart</a>
+            <a class="button" href={GITHUB_URL}>View on GitHub</a>
+          </div>
+          <div class="install">
+            <span class="prompt" aria-hidden="true">$</span>
+            <code>npm install agentside</code>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="wrap split">
+          <div class="copy">
+            <p class="kicker">One config</p>
+            <h2>Describe your twins once and mount them as middleware</h2>
+            <p>
+              Routes map a path to a source. A source can be a literal string, a function that returns markdown or a
+              remote URL. Return null when a page has no twin and Agentside steps aside.
+            </p>
+            <p>
+              The handler takes a standard Request and returns a standard Response, so the same config runs in your
+              server middleware, an edge worker or a plain fetch handler.
+            </p>
+            <a class="text-link" href={`${DOCS_URL}/routes`}>Routes and sources</a>
+          </div>
+          <div class="code-card">
+            <div class="code-title">middleware.ts</div>
+            <Code code={setup} lang="ts" themes={themes} defaultColor="light" />
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="wrap">
+          <div class="section-head">
+            <p class="kicker">Content negotiation</p>
+            <h2>Same URL for people and agents</h2>
+            <p>
+              Agentside reads the URL, the Accept header and the user agent to decide who gets markdown. Anything it
+              cannot serve passes through to your app, and an Accept header it cannot satisfy gets a 406.
+            </p>
+          </div>
+          <div class="grid four">
+            {
+              negotiation.map((item) => (
+                <article class="card">
+                  <code class="req">{item.request}</code>
+                  <code class="res">{item.response}</code>
+                  <p>{item.body}</p>
+                </article>
+              ))
+            }
+          </div>
+        </div>
+      </section>
+
+      <section class="section band">
+        <div class="wrap split">
+          <div class="copy">
+            <p class="kicker">A/B variants per agent</p>
+            <h2>Test what each agent reads</h2>
+            <p>
+              Give a route a list of variants and target them by agent name, vendor or purpose. The first variant that
+              matches is served and every response carries an X-Agentside-Variant header.
+            </p>
+            <p>
+              onServe hands you an exposure event for each read, so a GEO team can line up variants with the citations
+              and answers that follow.
+            </p>
+            <a class="text-link" href={`${DOCS_URL}/variants`}>A/B variants</a>
+          </div>
+          <div class="stack">
+            <div class="code-card">
+              <div class="code-title">variants</div>
+              <Code code={variants} lang="ts" themes={themes} defaultColor="light" />
+            </div>
+            <div class="code-card">
+              <div class="code-title">onServe event</div>
+              <Code code={exposure} lang="json" themes={themes} defaultColor="light" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="wrap">
+          <div class="section-head">
+            <p class="kicker">Error handling</p>
+            <h2>Agents never pay for a broken twin</h2>
+            <p>
+              Every source runs inside Effect with retries, a timeout and typed failures. When something goes wrong
+              Agentside picks the most useful answer it can still give.
+            </p>
+          </div>
+          <div class="grid three">
+            {
+              failures.map((item) => (
+                <article class="card">
+                  <h3>{item.title}</h3>
+                  <p>{item.body}</p>
+                </article>
+              ))
+            }
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="wrap">
+          <div class="bench">
+            <div>
+              <p class="kicker">Benchmarks</p>
+              <h2>Measured against Dualmark</h2>
+              <p>
+                On Bun 1.4 against Dualmark 0.11, an agent request for a markdown page takes 8.5 µs instead of
+                52.6 µs (6.2x faster), and still 2.8x faster with the cache turned off. Detecting an AI agent from
+                its user agent is 9 to 12 times faster, and a normal browser request passes through 1.3x faster.
+                The harness is in the repository so you can run it yourself.
+              </p>
+            </div>
+            <a class="button" href={BENCHMARKS_URL}>See the benchmark harness</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="section cta">
+        <div class="wrap cta-inner">
+          <h2>Ship markdown twins in an afternoon</h2>
+          <p>The docs cover every framework guide and walk you through moving over from Dualmark.</p>
+          <div class="actions">
+            <a class="button primary" href={DOCS_URL}>Read the docs</a>
+            <a class="button" href={`${DOCS_URL}/migrating-from-dualmark`}>Migrate from Dualmark</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap footer-inner">
+        <a class="brand small" href={NOTRA_URL}>
+          <img src="/logo.svg" alt="" width="20" height="20" />
+          <span>Agentside by Notra</span>
+        </a>
+        <nav class="nav" aria-label="Footer">
+          <a href={DOCS_URL}>Docs</a>
+          <a href={GITHUB_URL}>GitHub</a>
+          <a href="https://www.npmjs.com/package/agentside">npm</a>
+        </nav>
+      </div>
+    </footer>
+  </body>
+</html>
+
+<style>
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .header-inner,
+  .footer-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    min-height: 3.75rem;
+  }
+
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.625rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    text-decoration: none;
+  }
+
+  .brand img {
+    border-radius: 0.375rem;
+  }
+
+  .brand.small {
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  .nav {
+    display: flex;
+    gap: 1.25rem;
+    font-size: 0.875rem;
+  }
+
+  .nav a {
+    color: var(--muted);
+    text-decoration: none;
+  }
+
+  .nav a:hover {
+    color: var(--text);
+  }
+
+  .hero {
+    border-bottom: 1px solid var(--border);
+    background:
+      linear-gradient(var(--border) 1px, transparent 1px) 0 0 / 2.5rem 2.5rem,
+      linear-gradient(90deg, var(--border) 1px, transparent 1px) 0 0 / 2.5rem 2.5rem;
+    background-color: var(--bg);
+  }
+
+  .hero-inner {
+    padding-top: 5rem;
+    padding-bottom: 5rem;
+    max-width: 52rem;
+    text-align: center;
+  }
+
+  .eyebrow {
+    display: inline-block;
+    margin: 0 0 1.5rem;
+    padding: 0.25rem 0.75rem;
+    border: 1px solid var(--ink);
+    border-radius: 999px;
+    background: var(--lavender);
+    color: var(--ink);
+    font-size: 0.8125rem;
+    font-weight: 500;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(2.25rem, 6vw, 3.75rem);
+    line-height: 1.05;
+    letter-spacing: -0.035em;
+    font-weight: 600;
+    text-wrap: balance;
+  }
+
+  h2 {
+    margin: 0 0 1rem;
+    font-size: clamp(1.625rem, 3.5vw, 2.25rem);
+    line-height: 1.15;
+    letter-spacing: -0.025em;
+    font-weight: 600;
+    text-wrap: balance;
+  }
+
+  h3 {
+    margin: 0 0 0.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  .lede {
+    margin: 1.5rem auto 0;
+    max-width: 40rem;
+    color: var(--muted);
+    font-size: 1.125rem;
+    text-wrap: pretty;
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.75rem;
+    margin-top: 2rem;
+  }
+
+  .button {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    padding: 0 1.125rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    background: var(--surface);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: border-color 150ms ease;
+  }
+
+  .button:hover {
+    border-color: var(--muted);
+  }
+
+  .button.primary {
+    border-color: var(--primary);
+    background: var(--primary);
+    color: #ffffff;
+  }
+
+  .button.primary:hover {
+    border-color: var(--primary-text);
+    background: var(--primary-text);
+  }
+
+  .install {
+    display: inline-flex;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+    padding: 0.625rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    background: var(--surface);
+    font-size: 0.875rem;
+  }
+
+  .prompt {
+    color: var(--primary-text);
+    font-family: var(--mono);
+  }
+
+  .section {
+    padding: 5rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .band {
+    background: var(--muted-surface);
+  }
+
+  .split {
+    display: grid;
+    gap: 2.5rem;
+    align-items: start;
+  }
+
+  @media (min-width: 60rem) {
+    .split {
+      grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+      gap: 4rem;
+    }
+  }
+
+  .copy p,
+  .section-head p,
+  .bench p,
+  .cta p {
+    color: var(--muted);
+    text-wrap: pretty;
+  }
+
+  .kicker {
+    margin: 0 0 0.75rem;
+    color: var(--primary-text) !important;
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .text-link {
+    color: var(--primary-text);
+    font-weight: 500;
+    text-underline-offset: 3px;
+  }
+
+  .stack {
+    display: grid;
+    gap: 1rem;
+    min-width: 0;
+  }
+
+  .code-card {
+    min-width: 0;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background: var(--surface);
+    overflow: hidden;
+  }
+
+  .code-title {
+    padding: 0.625rem 1rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.75rem;
+  }
+
+  .code-card :global(pre) {
+    margin: 0;
+    padding: 1rem;
+    overflow-x: auto;
+    font-size: 0.8125rem;
+    line-height: 1.7;
+  }
+
+  .section-head {
+    max-width: 42rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .grid {
+    display: grid;
+    gap: 1rem;
+  }
+
+  @media (min-width: 40rem) {
+    .grid.four,
+    .grid.three {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 64rem) {
+    .grid.four {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .grid.three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  .card {
+    padding: 1.25rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background: var(--surface);
+  }
+
+  .card p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.9375rem;
+  }
+
+  .req,
+  .res {
+    display: block;
+    font-size: 0.8125rem;
+    overflow-wrap: anywhere;
+  }
+
+  .res {
+    margin: 0.25rem 0 1rem;
+    color: var(--primary-text);
+  }
+
+  .bench {
+    display: grid;
+    gap: 1.5rem;
+    align-items: center;
+    padding: 2rem;
+    border: 1px dashed var(--border);
+    border-radius: 0.75rem;
+  }
+
+  @media (min-width: 48rem) {
+    .bench {
+      grid-template-columns: 1fr auto;
+    }
+  }
+
+  .bench p {
+    margin: 0;
+    max-width: 40rem;
+  }
+
+  .cta {
+    background: var(--lavender);
+    color: var(--ink);
+    border-bottom-color: var(--ink);
+  }
+
+  .cta-inner {
+    text-align: center;
+  }
+
+  .cta p {
+    margin: 0 auto;
+    max-width: 32rem;
+    color: var(--ink);
+  }
+
+  .cta .button {
+    border-color: var(--ink);
+    background: #ffffff;
+    color: var(--ink);
+  }
+
+  .cta .button.primary {
+    background: var(--ink);
+    color: #ffffff;
+  }
+
+  .site-footer {
+    font-size: 0.875rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .button {
+      transition: none;
+    }
+  }
+</style>

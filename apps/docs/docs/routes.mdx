@@ -1,0 +1,89 @@
+---
+title: Routes and sources
+description: Map page paths to literal, local, remote and parameterized markdown sources.
+sidebar:
+  order: 2
+---
+
+`routes` maps a page path to a source. Every path must start with `/`, otherwise `agentside()` throws when it is created.
+
+```ts
+import { agentside, remote } from "agentside";
+
+const twins = agentside({
+  routes: {
+    "/": "# Acme\n\nAcme sends invoices your customers actually pay.",
+    "/pricing": () => renderPricingMarkdown(),
+    "/changelog": async () => (await fetchChangelog()).markdown,
+    "/blog/[slug]": ({ params }) => getPost(params.slug)?.markdown ?? null,
+    "/docs/[...path]": remote(({ params }) => `https://cms.acme.dev/docs/${params.path}.md`),
+    "/terms": remote("https://cms.acme.dev/terms.md", { headers: { authorization: `Bearer ${token}` } }),
+  },
+});
+```
+
+## Literal strings
+
+A string is served as is. It is the fastest source and a good fit for pages whose copy rarely changes.
+
+## Local functions
+
+A function receives a `RenderContext` and returns markdown, `null` or `undefined`, either directly or as a promise.
+
+```ts
+interface RenderContext {
+  readonly path: string;
+  readonly params: Readonly<Record<string, string>>;
+  readonly request: Request;
+  readonly agent: Agent | null;
+}
+```
+
+`path` is the page path without `.md` or a trailing slash. `agent` is the detected AI agent, or `null` when the request came from a client that asked for markdown without a known user agent. A thrown error or a rejected promise becomes a `RenderFailed` error.
+
+Twins are cached per path and variant, not per request. If a function reads `request` or `agent` to build different output, give each output its own [variant](/variants) or turn the [cache](/caching) off.
+
+## Returning null
+
+Return `null` or `undefined` when a page has no twin. Agentside treats that as `NotFound`: a negotiated request falls through to your HTML page and an explicit `.md` request gets a markdown 404.
+
+```ts
+"/blog/[slug]": ({ params }) => {
+  const post = getPost(params.slug);
+  return post?.published ? post.markdown : null;
+},
+```
+
+## Remote sources
+
+`remote(url, options)` fetches markdown over HTTP. The URL can be a string or a function of the render context. Requests send `Accept: text/markdown, text/plain;q=0.9` plus any `headers` you pass.
+
+| Upstream response | Result |
+| --- | --- |
+| 2xx | The response body is the twin. |
+| 404 | `NotFound`, same as returning `null`. |
+| Other 4xx | `RemoteFailed` with `status`, not retried. |
+| 5xx or network error | `RemoteFailed`, retried with exponential backoff. |
+| Slower than `timeoutMs` | `SourceTimeout`. |
+
+See [Error handling](/error-handling) for retries and timeouts.
+
+## Parameters
+
+Patterns use bracket segments.
+
+| Pattern | Matches | `params` |
+| --- | --- | --- |
+| `/blog/[slug]` | `/blog/hello` | `{ slug: "hello" }` |
+| `/docs/[...path]` | `/docs/guides/setup` | `{ path: "guides/setup" }` |
+| `/[lang]/docs/[...path]` | `/de/docs/api` | `{ lang: "de", path: "api" }` |
+
+A `[name]` segment matches exactly one path segment and `[...name]` matches one or more. Values are URL decoded. Exact routes win over parameterized ones and parameterized routes are tried in the order you declared them.
+
+## Paths and URLs
+
+Agentside normalizes the request path before matching. `/pricing`, `/pricing/` and `/pricing.md` all resolve to the `/pricing` route, and `/` is served at `/index.md`.
+
+## Unicode normalization
+
+By default Agentside replaces typographic characters that waste tokens or confuse tokenizers, such as zero-width spaces, smart quotes, non-breaking spaces and currency symbols, with plain ASCII equivalents. Set `normalize: false` to serve your markdown byte for byte. The same function is exported as `normalizeUnicode`.

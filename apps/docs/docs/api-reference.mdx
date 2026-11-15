@@ -1,0 +1,114 @@
+---
+title: API reference
+description: Every export of agentside and agentside/effect with its signature and defaults.
+sidebar:
+  order: 10
+---
+
+## agentside(config)
+
+```ts
+function agentside(config: AgentsideConfig): {
+  handle(request: Request, next: () => Promise<Response>): Promise<Response>;
+  serve(request: Request, pathname?: string): Promise<Response>;
+};
+```
+
+`handle` negotiates the request and either answers with markdown or calls `next()`. See [Content negotiation](/negotiation). `serve` treats the request as an explicit markdown request for `pathname`, which defaults to the request URL's path. The returned object's type is exported as `Agentside`.
+
+## AgentsideConfig
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `routes` | `Record<string, Source>` | required | Page paths or patterns mapped to their twin's source. |
+| `variants` | `Record<string, Variant[]>` | `{}` | Variants per route pattern. See [A/B variants](/variants). |
+| `skip` | `string[]` | `[]` | Path prefixes that `handle` never touches. |
+| `cache` | `{ ttlMs?, capacity? } \| false` | `{ ttlMs: 300000, capacity: 1000 }` | In-memory cache settings. See [Caching](/caching). |
+| `timeoutMs` | `number` | `5000` | Timeout for each source load, including retries. |
+| `retries` | `number` | `2` | Retries for remote sources on network errors and 5xx. |
+| `cacheControl` | `string` | `"public, max-age=3600"` | `Cache-Control` for markdown responses. |
+| `noindex` | `boolean` | `true` | Adds `X-Robots-Tag: noindex` to markdown responses. |
+| `linkHeader` | `boolean` | `true` | Adds a `Link` header to HTML responses that have a twin. |
+| `normalize` | `boolean` | `true` | Replaces typographic Unicode with ASCII. |
+| `onServe` | `(event: ServeEvent) => void` | | Runs after every successful markdown response. |
+| `onError` | `(error: unknown, path: string) => void` | | Runs when a source fails. |
+
+## Sources
+
+```ts
+type Source = string | LocalSource | RemoteSource;
+type LocalSource = (context: RenderContext) => string | null | undefined | Promise<string | null | undefined>;
+
+function remote(
+  url: string | ((context: RenderContext) => string),
+  options?: { headers?: Record<string, string> }
+): RemoteSource;
+```
+
+## Variant
+
+```ts
+interface Variant {
+  readonly id: string;
+  readonly source: Source;
+  readonly agents?: readonly string[];
+  readonly vendors?: readonly string[];
+  readonly purposes?: readonly AgentPurpose[];
+}
+```
+
+## Types
+
+```ts
+type AgentPurpose = "training" | "search" | "user-action";
+type Format = "html" | "markdown";
+
+interface Agent {
+  readonly name: string;
+  readonly vendor: string;
+  readonly purpose: AgentPurpose;
+}
+
+interface RenderContext {
+  readonly path: string;
+  readonly params: Readonly<Record<string, string>>;
+  readonly request: Request;
+  readonly agent: Agent | null;
+}
+
+interface ServeEvent {
+  readonly path: string;
+  readonly variant: string;
+  readonly agent: Agent | null;
+  readonly status: number;
+  readonly cached: boolean;
+  readonly durationMs: number;
+}
+```
+
+## Helpers
+
+| Export | Signature | Description |
+| --- | --- | --- |
+| `detectAgent` | `(userAgent: string \| null \| undefined) => Agent \| null` | Detects a known AI agent from a user agent. |
+| `KNOWN_AGENTS` | `readonly Agent[]` | Every agent `detectAgent` recognizes. |
+| `negotiateFormat` | `(accept: string \| null \| undefined) => Format \| null` | Picks markdown or HTML from an `Accept` header, or `null` when neither is acceptable. |
+| `toMarkdownPath` | `(pathname: string) => string` | Maps a page path to its twin URL, `/pricing` to `/pricing.md` and `/` to `/index.md`. |
+| `estimateTokens` | `(text: string) => number` | The whitespace-based estimate sent as `X-Markdown-Tokens`. |
+| `normalizeUnicode` | `(text: string) => string` | The normalization applied when `normalize` is on. |
+
+## Errors
+
+`NotFound`, `RenderFailed`, `RemoteFailed`, `SourceTimeout` and the `ServeError` union. See [Error handling](/error-handling#typed-errors).
+
+## agentside/effect
+
+| Export | Description |
+| --- | --- |
+| `make(config)` | The Effect program behind `agentside()`, returning `{ match, serve }`. |
+| `markdownResponse(body, config, status?, extra?)` | Builds a markdown `Response` with Agentside's headers. |
+| `CONTROL` | `"control"` |
+| `Match`, `Served` | Types returned by `match` and `serve`. |
+| Errors | `NotFound`, `RenderFailed`, `RemoteFailed`, `SourceTimeout`, `ServeError` |
+
+See [Effect API](/effect) for an example.

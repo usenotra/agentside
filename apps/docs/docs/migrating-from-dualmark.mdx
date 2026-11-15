@@ -1,0 +1,113 @@
+---
+title: Migrating from Dualmark
+description: Map a Dualmark route handler and middleware to Agentside routes and a single handle call.
+sidebar:
+  order: 9
+---
+
+Dualmark splits markdown twins into a middleware that rewrites requests to an internal `/md` namespace and a route handler that renders them. Agentside does both in one `handle` call, so the migration removes the rewrite, the internal route and `generateStaticParams`.
+
+## Before
+
+```ts app/md/[...path]/route.ts
+import { createDualmarkRouteHandler } from "@dualmark/nextjs";
+
+const handler = createDualmarkRouteHandler({
+  siteUrl: "https://acme.dev",
+  staticPages: [
+    { pattern: "/", render: () => "# Acme\n\nAcme sends invoices your customers actually pay." },
+    { pattern: "/pricing", render: () => renderPricingMarkdown() },
+  ],
+  collections: {
+    blog: {
+      converter: "blog",
+      getEntries: () => getPosts(),
+    },
+  },
+  parameterizedRoutes: [
+    {
+      pattern: "/tax/[country]",
+      getStaticPaths: () => COUNTRIES.map((country) => ({ params: { country } })),
+      render: ({ params }) => renderTaxPage(params.country),
+    },
+  ],
+  headers: { cacheControl: "public, max-age=600" },
+});
+
+export const GET = handler.GET;
+export const generateStaticParams = handler.generateStaticParams;
+```
+
+```ts proxy.ts
+import { createDualmarkMiddleware } from "@dualmark/nextjs";
+
+const middleware = createDualmarkMiddleware({
+  siteUrl: "https://acme.dev",
+  middleware: { skipPaths: ["/api"] },
+});
+
+export default middleware;
+export const config = middleware.config;
+```
+
+## After
+
+```ts lib/agentside.ts
+import { agentside } from "agentside";
+
+export const twins = agentside({
+  routes: {
+    "/": "# Acme\n\nAcme sends invoices your customers actually pay.",
+    "/pricing": () => renderPricingMarkdown(),
+    "/blog": async () => renderBlogIndex(await getPosts()),
+    "/blog/[slug]": async ({ params }) => {
+      const post = (await getPosts()).find((entry) => entry.id === params.slug);
+      return post ? renderPostMarkdown(post) : null;
+    },
+    "/tax/[country]": ({ params }) => (COUNTRIES.includes(params.country) ? renderTaxPage(params.country) : null),
+  },
+  skip: ["/api"],
+  cacheControl: "public, max-age=600",
+});
+```
+
+```ts proxy.ts
+import { NextResponse, type NextRequest } from "next/server";
+
+import { twins } from "@/lib/agentside";
+
+export function proxy(request: NextRequest) {
+  return twins.handle(request, async () => NextResponse.next());
+}
+
+export const config = {
+  matcher: ["/((?!_next/|favicon.ico).*)"],
+};
+```
+
+Delete `app/md/[...path]/route.ts`. Agentside answers `.md` URLs in the middleware, so the internal namespace is no longer needed.
+
+## Mapping
+
+| Dualmark | Agentside |
+| --- | --- |
+| `staticPages: [{ pattern, render }]` | `routes: { [pattern]: render }` |
+| `collections.blog` with `getEntries` and a converter | `"/blog/[slug]"` that finds the entry and returns markdown, or `null` when it does not exist |
+| The collection listing at `/blog.md` | An explicit `"/blog"` route |
+| `parameterizedRoutes: [{ pattern, getStaticPaths, render }]` | `routes: { [pattern]: ({ params }) => ... }`. Return `null` for params that `getStaticPaths` would not have listed. |
+| `slugStrategy: "catch-all"` | A `[...slug]` segment |
+| `createDualmarkMiddleware()` and the `/md` route handler | `twins.handle(request, next)` |
+| `internalNamespace` | Not needed |
+| `middleware.skipPaths` | `skip` |
+| `middleware.injectLinkHeader` | `linkHeader` |
+| `headers.cacheControl` | `cacheControl` |
+| `headers.noindex` | `noindex` |
+
+## What changes for agents
+
+- Twins render on request and are cached for five minutes instead of being prerendered at build time. Tune this with [`cache`](/caching).
+- A broken twin on a negotiated request falls back to your HTML page instead of an error response.
+- Markdown can come from a CMS or another service with [`remote()`](/routes#remote-sources), which retries and times out on its own.
+- You can serve [different twins to different agents](/variants) and track exposures with `onServe`.
+
+Dualmark's built-in converters turn collection entries into markdown. Agentside does not ship converters, so keep calling the function you used as a custom converter or render the entry body yourself.

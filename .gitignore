@@ -1,0 +1,7 @@
+node_modules
+dist
+.turbo
+.astro
+.blume
+.DS_Store
+*.tgz

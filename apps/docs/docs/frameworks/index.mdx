@@ -1,0 +1,18 @@
+---
+title: Framework guides
+description: Mount Agentside in any framework that hands you a fetch Request and lets you return a Response.
+---
+
+Agentside needs two things from a framework: the incoming `Request` and a way to render the regular page as a `Response`. Every integration is a variation of the same line.
+
+```ts
+const response = await twins.handle(request, () => renderPage(request));
+```
+
+Keep the `agentside()` call in its own module so the routes, cache and variants are created once per process.
+
+- [TanStack Start](/frameworks/tanstack-start)
+- [Astro middleware](/frameworks/astro)
+- [Next.js middleware](/frameworks/nextjs)
+- [Hono](/frameworks/hono)
+- [Cloudflare Workers and Bun.serve](/frameworks/workers-and-bun)

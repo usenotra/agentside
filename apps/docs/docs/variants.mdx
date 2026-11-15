@@ -1,0 +1,63 @@
+---
+title: A/B variants
+description: Serve different markdown twins to different AI agents and record which variant each agent read.
+sidebar:
+  order: 4
+---
+
+Variants let a GEO or AEO team test what agents read. Each route can list variants that target agents by name, vendor or purpose. The route's own source is the control.
+
+```ts
+import { agentside, remote } from "agentside";
+
+const twins = agentside({
+  routes: {
+    "/pricing": () => renderPricingMarkdown(),
+  },
+  variants: {
+    "/pricing": [
+      { id: "pricing-openai", vendors: ["OpenAI"], source: remote("https://cms.acme.dev/pricing-v2.md") },
+      { id: "pricing-search", purposes: ["search"], source: () => renderPricingMarkdown({ compact: true }) },
+      { id: "pricing-claude-user", agents: ["Claude-User"], source: "# Pricing\n\nStarter is free." },
+    ],
+  },
+  onServe: (event) => analytics.track("agent_read", event),
+});
+```
+
+## Matching
+
+The key in `variants` is the route pattern, exactly as written in `routes`, so `"/blog/[slug]"` targets every blog post. For each request Agentside picks the first variant whose matcher fits the detected agent.
+
+| Field | Matches when |
+| --- | --- |
+| `agents` | The agent name is in the list, compared case insensitively. |
+| `vendors` | The agent vendor is in the list, compared case insensitively. |
+| `purposes` | The agent purpose is in the list. |
+
+A variant matches when any of its fields match. Requests without a known AI agent, such as a client that only sends `Accept: text/markdown`, always get the control. A variant's `source` accepts everything a route accepts: a string, a function or `remote()`.
+
+Order variants from most to least specific because the first match wins. In the example above ChatGPT-User gets `pricing-openai`, PerplexityBot gets `pricing-search` and Claude-User gets `pricing-claude-user`.
+
+## Exposure events
+
+`onServe` runs after every successful markdown response with a `ServeEvent`.
+
+```ts
+interface ServeEvent {
+  readonly path: string;
+  readonly variant: string;
+  readonly agent: Agent | null;
+  readonly status: number;
+  readonly cached: boolean;
+  readonly durationMs: number;
+}
+```
+
+`variant` is the id that was actually served. When a variant fails and falls back, the event reports `control`, which keeps your exposure data honest. The same id is sent to the client in the `X-Agentside-Variant` header.
+
+Keep `onServe` fast and non-blocking. Queue the event or hand it to your analytics client instead of awaiting a network call.
+
+## Failures
+
+A variant that throws, times out or returns `null` falls back to the control twin. `onError(error, path)` receives the variant's error so you can spot a broken experiment without agents noticing.

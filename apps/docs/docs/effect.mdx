@@ -1,0 +1,77 @@
+---
+title: Effect API
+description: Use the Effect program behind Agentside directly through agentside/effect.
+sidebar:
+  order: 8
+---
+
+`agentside()` is a thin promise wrapper around an Effect program. If your app already runs on Effect, import that program from `agentside/effect` and compose it with your own services, schedules and error handling.
+
+```ts
+import { CONTROL, make, markdownResponse, NotFound, RemoteFailed, RenderFailed, SourceTimeout } from "agentside/effect";
+```
+
+## make
+
+`make(config)` takes the same `AgentsideConfig` as `agentside()` and returns an Effect that builds the router and the cache. It has no requirements.
+
+```ts
+const server = yield* make(config);
+```
+
+| Member | Type |
+| --- | --- |
+| `match(path)` | `Match \| null` with `{ pattern, params, source }` for the route that matches a page path. |
+| `serve(path, request, agent)` | `Effect<Served, ServeError>` that loads the twin with variants, retries, timeouts and the cache. |
+
+`serve` takes the page path without `.md`, the request and the agent from `detectAgent`. It succeeds with `{ body, variant, cached }` and fails with one of the typed errors. Variant failures are already folded into the control, so a failure always belongs to the control twin.
+
+## Example
+
+```ts
+import { Effect } from "effect";
+import { detectAgent, type AgentsideConfig } from "agentside";
+import { make, markdownResponse } from "agentside/effect";
+
+const config: AgentsideConfig = {
+  routes: {
+    "/pricing": () => renderPricingMarkdown(),
+  },
+};
+
+const program = Effect.gen(function* () {
+  const server = yield* make(config);
+
+  return (request: Request) => {
+    const agent = detectAgent(request.headers.get("user-agent"));
+    return server.serve("/pricing", request, agent).pipe(
+      Effect.map(({ body, variant }) => markdownResponse(body, config, 200, { "X-Agentside-Variant": variant })),
+      Effect.catchTag("NotFound", () =>
+        Effect.succeed(new Response("No twin", { status: 404 }))
+      ),
+      Effect.catchTags({
+        RenderFailed: () => Effect.succeed(markdownResponse("# Unavailable\n", config, 503)),
+        RemoteFailed: (error) => Effect.succeed(markdownResponse(`# Upstream returned ${error.status}\n`, config, 502)),
+        SourceTimeout: () => Effect.succeed(markdownResponse("# Timed out\n", config, 504)),
+      })
+    );
+  };
+});
+
+const serve = Effect.runSync(program);
+const response = await Effect.runPromise(serve(new Request("https://acme.dev/pricing.md")));
+```
+
+Create the server once with `make` and reuse it. Each call to `make` builds its own cache.
+
+## markdownResponse
+
+`markdownResponse(body, config, status?, extraHeaders?)` builds a `Response` with the same headers `handle` uses: `Content-Type`, `X-Markdown-Tokens`, `Vary`, `Cache-Control`, `X-Content-Type-Options` and `X-Robots-Tag` unless `noindex` is `false`.
+
+## CONTROL
+
+`CONTROL` is the string `"control"`, the variant id reported when the route's own source is served.
+
+## Errors
+
+`NotFound`, `RenderFailed`, `RemoteFailed` and `SourceTimeout` are `Schema.TaggedError` classes. Match them with `Effect.catchTag`, `Effect.catchTags` or a `switch` on `_tag`. The `ServeError` type is the union of all four. See [Error handling](/error-handling#typed-errors) for their fields.
