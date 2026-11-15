@@ -58,6 +58,26 @@ export interface AgentsideConfig {
   readonly noindex?: boolean;
   readonly linkHeader?: boolean;
   readonly normalize?: boolean;
+  readonly accept?: "q-value" | "contains";
   readonly onServe?: (event: ServeEvent) => void;
   readonly onError?: (error: unknown, path: string) => void;
+}
+
+export interface HtmlToMarkdownOptions {
+  readonly selector?: string;
+  readonly siteUrl?: string;
+}
+
+export interface PrerenderHtmlOptions extends HtmlToMarkdownOptions {
+  readonly dir: string;
+  readonly outDir?: string;
+  readonly exclude?: readonly string[];
+  readonly llms?: { readonly title: string; readonly description?: string } | false;
+}
+
+export interface PrerenderedPage {
+  readonly path: string;
+  readonly title: string;
+  readonly description: string;
+  readonly markdown: string;
 }

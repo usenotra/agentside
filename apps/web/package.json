@@ -4,13 +4,14 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build && rm -rf dist/docs && cp -R ../docs/dist dist/docs",
+    "build": "astro build && rm -rf dist/docs && cp -R ../docs/dist dist/docs && bun agentside.ts",
     "preview": "astro preview"
   },
   "dependencies": {
     "@fontsource-variable/geist": "5.3.0",
     "@fontsource-variable/geist-mono": "5.3.0",
-    "astro": "7.4.7"
+    "astro": "7.4.7",
+    "@usenotra/agentside": "workspace:*"
   },
   "devDependencies": {
     "@agentside/docs": "workspace:*"

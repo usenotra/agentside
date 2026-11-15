@@ -96,4 +96,4 @@ jobs:
         run: npm install -g npm@12.2.0
 
       - name: Stage publish
-        run: npm stage publish ./agentside.tgz --access public
+        run: npm stage publish ./agentside.tgz --provenance --access public

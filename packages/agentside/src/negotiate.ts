@@ -2,8 +2,12 @@ import type { Format } from "./types.js";
 
 const HTML_TYPES = new Set(["text/html", "application/xhtml+xml"]);
 
-export function negotiateFormat(accept: string | null | undefined): Format | null {
+export function negotiateFormat(
+  accept: string | null | undefined,
+  mode: "q-value" | "contains" = "q-value"
+): Format | null {
   if (!accept) return "html";
+  if (mode === "contains" && accept.includes("text/markdown")) return "markdown";
   if (!accept.includes("markdown") && !accept.includes("q=")) {
     return accept.includes("html") || accept.includes("*/*") || accept.includes("text/*") ? "html" : null;
   }

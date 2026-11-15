@@ -22,6 +22,7 @@ function agentside(config: AgentsideConfig): {
 | --- | --- | --- | --- |
 | `routes` | `Record<string, Source>` | required | Page paths or patterns mapped to their twin's source. |
 | `variants` | `Record<string, Variant[]>` | `{}` | Variants per route pattern. See [A/B variants](/variants). |
+| `accept` | `"q-value" \| "contains"` | `"q-value"` | `"contains"` serves markdown whenever `Accept` mentions `text/markdown`, matching CDN rules that can't parse q-values. |
 | `skip` | `string[]` | `[]` | Path prefixes that `handle` never touches. |
 | `cache` | `{ ttlMs?, capacity? } \| false` | `{ ttlMs: 300000, capacity: 1000 }` | In-memory cache settings. See [Caching](/caching). |
 | `timeoutMs` | `number` | `5000` | Timeout for each source load, including retries. |
@@ -126,4 +127,29 @@ const { written, skipped } = await prerender(config, {
 ```
 
 `prerender` renders each path once with the cache off and writes it to `outDir` at its `.md` URL (`/` becomes `index.md`). `paths` defaults to every route without parameters. Twins that return `null` end up in `skipped`. If any twin fails, it throws one error listing every failing path, so a broken twin stops the build instead of reaching agents.
+
+### prerenderHtml
+
+```ts
+import { prerenderHtml } from "@usenotra/agentside/build";
+
+const pages = await prerenderHtml({
+  dir: "dist",
+  outDir: "dist",
+  siteUrl: "https://example.com",
+  selector: "main",
+  exclude: ["/admin"],
+  llms: { title: "Acme", description: "We make anvils." },
+});
+```
+
+Converts every built `.html` file in `dir` (except `404.html` and `500.html`) to markdown and writes it to `outDir` at its `.md` URL. Only the `selector` element is converted, which defaults to `<main>`, then `<article>`, then `<body>`. Elements with `data-ai-ignore` are dropped, elements with `data-ai-content` are replaced by the attribute's markdown, `<dl>` lists become `**term**: definition` items, cards (a link wrapping a heading) become `[Heading](url): text` and tables become GFM tables. With `llms`, it also writes `llms.txt` and `llms-full.txt`. Returns the converted pages; any failure throws one error listing every failing path.
+
+### htmlToMarkdown
+
+`htmlToMarkdown(html, { selector?, siteUrl? })` converts a single HTML document with the same rules.
+
+### vercelRoutes
+
+`vercelRoutes(paths?)` returns `{ rewrites, headers }` for `vercel.json`. Requests with `Accept: text/markdown` or a known AI agent user agent are rewritten to the page's `.md` file, and `.md` responses get `Content-Type: text/markdown`, `Vary` and `X-Robots-Tag`. Without `paths` it covers every path without a file extension; with `paths` it covers only those pages. Set `accept: "contains"` on any `agentside()` handler that sits behind these rules so both layers make the same decision.
 

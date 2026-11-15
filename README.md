@@ -78,6 +78,46 @@ await prerender({ routes }, { outDir: "dist/client", paths: ["/", "/pricing", "/
 
 `paths` defaults to every route without parameters. Keep `handle` in front for `Accept` and user agent negotiation, or add CDN rewrites that send those requests to the `.md` file.
 
+## Static sites: convert your built HTML
+
+If your pages are static, you don't need to write any markdown. After your build, `prerenderHtml` reads every `.html` file, converts the page's `<main>` (falling back to `<article>` and `<body>`) to markdown and writes it next to the page as `.md`. It also writes `llms.txt` and `llms-full.txt`.
+
+```ts
+import { prerenderHtml } from "@usenotra/agentside/build";
+
+await prerenderHtml({
+  dir: "dist",
+  siteUrl: "https://example.com",
+  exclude: ["/admin"],
+  llms: { title: "Acme", description: "We make anvils." },
+});
+```
+
+Mark up the HTML to control what agents read:
+
+| Markup | Result |
+| --- | --- |
+| `data-ai-ignore` | The element and everything in it is left out |
+| `data-ai-content="..."` | The element is replaced by the markdown in the attribute, useful for charts, widgets and images |
+| `<table>` | A GFM table |
+| `<dl>` | A list of `**term**: definition` pairs |
+| A link wrapping a heading and text (a card) | `[Heading](url): text` |
+| `<nav>` and `<footer>` outside `<main>`, scripts, styles, forms and buttons | Left out |
+
+Links and images become absolute when you pass `siteUrl`, and a page that fails to convert fails the build with every failing path listed. `htmlToMarkdown(html, options)` is exported too if you want to convert a single page.
+
+### Negotiating at the CDN
+
+Static pages on Vercel never reach a function, so negotiation has to happen in the routing layer. `vercelRoutes()` returns `rewrites` and `headers` for `vercel.json` that send `Accept: text/markdown` and known AI agents to the `.md` file:
+
+```ts
+import { vercelRoutes } from "@usenotra/agentside/build";
+
+await Bun.write("vercel.json", JSON.stringify(vercelRoutes(), null, 2));
+```
+
+Pass the list of paths (for example `pages.map((page) => page.path)` from `prerenderHtml`) to rewrite only pages that have a twin. CDN rules can't read q-values, so if part of your site also runs `handle`, set `accept: "contains"` there to make the same decision as the CDN.
+
 ## Repository
 
 | Path | What |
@@ -96,7 +136,7 @@ bun run bench
 
 ## Releasing
 
-Bump `version` in `packages/agentside/package.json` and merge to `main`. The publish workflow builds the tarball in one job and publishes it from another that only has `id-token: write`, using npm trusted publishing and `npm stage publish`, so a maintainer approves the staged release on npmjs.com before it goes live. No npm token is stored in the repository.
+Bump `version` in `packages/agentside/package.json` and merge to `main`. The publish workflow builds the tarball in one job and publishes it from another that only has `id-token: write`, using npm trusted publishing with provenance and `npm stage publish`, so a maintainer approves the staged release on npmjs.com before it goes live. No npm token is stored in the repository.
 
 ## License
 
