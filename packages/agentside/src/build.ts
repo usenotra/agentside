@@ -136,24 +136,23 @@ export function vercelRoutes(paths?: readonly string[]) {
     { type: "header", key: "accept", value: ".*text/markdown.*" },
     { type: "header", key: "user-agent", value: `.*(${agentTokens.map(escapeRegex).join("|")}).*` },
   ] as const;
-  const nested = paths?.filter((path) => path !== "/").map((path) => escapeRegex(path.slice(1)));
-  const rewrites = conditions.flatMap((condition) => [
-    ...(!paths || paths.includes("/") ? [{ source: "/", has: [condition], destination: "/index.md" }] : []),
-    ...(!nested
-      ? [{ source: "/:path((?!.*\\.).*[^/])", has: [condition], destination: "/:path.md" }]
-      : nested.length > 0
-        ? [{ source: `/:path(${nested.join("|")})`, has: [condition], destination: "/:path.md" }]
+  const markdownHeaders = {
+    "Content-Type": "text/markdown; charset=utf-8",
+    Vary: "Accept, User-Agent",
+    "X-Robots-Tag": "noindex",
+  };
+  const nested = paths?.filter((path) => path !== "/").map((path) => path.slice(1).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const pagePattern = nested ? `(${nested.join("|")})` : "((?!.*\\.).*[^/])";
+  const routes = [
+    { src: "^/(.+)\\.md$", headers: markdownHeaders, continue: true },
+    ...conditions.flatMap((condition) => [
+      ...(!paths || paths.includes("/")
+        ? [{ src: "^/$", has: [condition], dest: "/index.md", headers: markdownHeaders }]
         : []),
-  ]);
-  const headers = [
-    {
-      source: "/(.*)\\.md",
-      headers: [
-        { key: "Content-Type", value: "text/markdown; charset=utf-8" },
-        { key: "Vary", value: "Accept, User-Agent" },
-        { key: "X-Robots-Tag", value: "noindex" },
-      ],
-    },
+      ...(!nested || nested.length > 0
+        ? [{ src: `^/${pagePattern}/?$`, has: [condition], dest: "/$1.md", headers: markdownHeaders }]
+        : []),
+    ]),
   ];
-  return { rewrites, headers };
+  return { routes };
 }

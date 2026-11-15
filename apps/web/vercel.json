@@ -1,8 +1,17 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "rewrites": [
+  "routes": [
     {
-      "source": "/",
+      "src": "^/(.+)\\.md$",
+      "headers": {
+        "Content-Type": "text/markdown; charset=utf-8",
+        "Vary": "Accept, User-Agent",
+        "X-Robots-Tag": "noindex"
+      },
+      "continue": true
+    },
+    {
+      "src": "^/$",
       "has": [
         {
           "type": "header",
@@ -10,10 +19,15 @@
           "value": ".*text/markdown.*"
         }
       ],
-      "destination": "/index.md"
+      "dest": "/index.md",
+      "headers": {
+        "Content-Type": "text/markdown; charset=utf-8",
+        "Vary": "Accept, User-Agent",
+        "X-Robots-Tag": "noindex"
+      }
     },
     {
-      "source": "/:path((?!.*\\.).*[^/])",
+      "src": "^/((?!.*\\.).*[^/])/?$",
       "has": [
         {
           "type": "header",
@@ -21,10 +35,15 @@
           "value": ".*text/markdown.*"
         }
       ],
-      "destination": "/:path.md"
+      "dest": "/$1.md",
+      "headers": {
+        "Content-Type": "text/markdown; charset=utf-8",
+        "Vary": "Accept, User-Agent",
+        "X-Robots-Tag": "noindex"
+      }
     },
     {
-      "source": "/",
+      "src": "^/$",
       "has": [
         {
           "type": "header",
@@ -32,10 +51,15 @@
           "value": ".*(ChatGPT-User|chatgpt-user|OAI-SearchBot|oai-searchbot|GPTBot|gptbot|Claude-User|claude-user|Claude-SearchBot|claude-searchbot|ClaudeBot|claudebot|Claude-Web|claude-web|Anthropic-ai|anthropic-ai|Perplexity-User|perplexity-user|PerplexityBot|perplexitybot|MistralAI-User|mistralai-user|GoogleOther|googleother|Applebot-Extended|applebot-extended|Meta-ExternalAgent|meta-externalagent|Meta-ExternalFetcher|meta-externalfetcher|DuckAssistBot|duckassistbot|YouBot|youbot|cohere-ai|Amazonbot|amazonbot|Bytespider|bytespider|CCBot|ccbot|Diffbot|diffbot|ImagesiftBot|imagesiftbot|Omgilibot|omgilibot).*"
         }
       ],
-      "destination": "/index.md"
+      "dest": "/index.md",
+      "headers": {
+        "Content-Type": "text/markdown; charset=utf-8",
+        "Vary": "Accept, User-Agent",
+        "X-Robots-Tag": "noindex"
+      }
     },
     {
-      "source": "/:path((?!.*\\.).*[^/])",
+      "src": "^/((?!.*\\.).*[^/])/?$",
       "has": [
         {
           "type": "header",
@@ -43,26 +67,12 @@
           "value": ".*(ChatGPT-User|chatgpt-user|OAI-SearchBot|oai-searchbot|GPTBot|gptbot|Claude-User|claude-user|Claude-SearchBot|claude-searchbot|ClaudeBot|claudebot|Claude-Web|claude-web|Anthropic-ai|anthropic-ai|Perplexity-User|perplexity-user|PerplexityBot|perplexitybot|MistralAI-User|mistralai-user|GoogleOther|googleother|Applebot-Extended|applebot-extended|Meta-ExternalAgent|meta-externalagent|Meta-ExternalFetcher|meta-externalfetcher|DuckAssistBot|duckassistbot|YouBot|youbot|cohere-ai|Amazonbot|amazonbot|Bytespider|bytespider|CCBot|ccbot|Diffbot|diffbot|ImagesiftBot|imagesiftbot|Omgilibot|omgilibot).*"
         }
       ],
-      "destination": "/:path.md"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/(.*)\\.md",
-      "headers": [
-        {
-          "key": "Content-Type",
-          "value": "text/markdown; charset=utf-8"
-        },
-        {
-          "key": "Vary",
-          "value": "Accept, User-Agent"
-        },
-        {
-          "key": "X-Robots-Tag",
-          "value": "noindex"
-        }
-      ]
+      "dest": "/$1.md",
+      "headers": {
+        "Content-Type": "text/markdown; charset=utf-8",
+        "Vary": "Accept, User-Agent",
+        "X-Robots-Tag": "noindex"
+      }
     }
   ]
 }
