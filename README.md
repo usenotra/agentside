@@ -96,7 +96,7 @@ bun run bench
 
 ## Releasing
 
-Bump `version` in `packages/agentside/package.json` and merge to `main`. The publish workflow builds the tarball in one job and publishes it from another that only has `id-token: write`, using npm trusted publishing with provenance and `npm stage publish`, so a maintainer approves the staged release on npmjs.com before it goes live. No npm token is stored in the repository.
+Bump `version` in `packages/agentside/package.json` and merge to `main`. The publish workflow builds the tarball in one job and publishes it from another that only has `id-token: write`, using npm trusted publishing and `npm stage publish`, so a maintainer approves the staged release on npmjs.com before it goes live. No npm token is stored in the repository.
 
 ## License
 
