@@ -112,3 +112,18 @@ interface ServeEvent {
 | Errors | `NotFound`, `RenderFailed`, `RemoteFailed`, `SourceTimeout`, `ServeError` |
 
 See [Effect API](/effect) for an example.
+
+## agentside/build
+
+```ts
+import { prerender } from "agentside/build";
+
+const { written, skipped } = await prerender(config, {
+  outDir: "dist/client",
+  paths: ["/", "/pricing", "/blog/hello"],
+  siteUrl: "https://example.com",
+});
+```
+
+`prerender` renders each path once with the cache off and writes it to `outDir` at its `.md` URL (`/` becomes `index.md`). `paths` defaults to every route without parameters. Twins that return `null` end up in `skipped`. If any twin fails, it throws one error listing every failing path, so a broken twin stops the build instead of reaching agents.
+

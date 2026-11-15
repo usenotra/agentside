@@ -4,6 +4,8 @@
 
 Serve markdown versions of your pages to AI agents and A/B test what they read. Built on [Effect](https://effect.website), works with any framework that speaks `Request` and `Response`.
 
+[agentside.usenotra.com](https://agentside.usenotra.com) · [Docs](https://agentside.usenotra.com/docs)
+
 ```sh
 bun add agentside
 ```
@@ -47,13 +49,13 @@ Agentside does what [Dualmark](https://github.com/dodopayments/dualmark) does, w
 
 | Scenario | Dualmark | Agentside | Speedup |
 | --- | --- | --- | --- |
-| Agent detection, browser user agent | 556 ns | 47 ns | 11.9x |
-| Agent detection, AI bot user agent | 487 ns | 53 ns | 9.3x |
-| Accept negotiation, browser header | 487 ns | 245 ns | 2.0x |
-| Unicode normalisation, 5 KB of markdown | 24.6 µs | 8.1 µs | 3.0x |
-| Browser request that gets HTML | 2.36 µs | 1.86 µs | 1.3x |
-| Agent request, route 200 of 200 | 52.6 µs | 8.5 µs (18.5 µs without cache) | 6.2x |
-| `.md` request on a parameterised route | 43.4 µs | 6.8 µs (18.4 µs without cache) | 6.4x |
+| Agent detection, browser user agent | 513 ns | 43 ns | 11.8x |
+| Agent detection, AI bot user agent | 485 ns | 54 ns | 9.0x |
+| Accept negotiation, browser header | 464 ns | 244 ns | 1.9x |
+| Unicode normalisation, 5 KB of markdown | 23.4 µs | 7.1 µs | 3.3x |
+| Browser request that gets HTML | 2.26 µs | 1.47 µs | 1.5x |
+| Agent request, route 200 of 200 | 41.2 µs | 2.67 µs (15.4 µs without cache) | 15.4x |
+| `.md` request on a parameterised route | 37.9 µs | 2.30 µs (15.5 µs without cache) | 16.5x |
 
 Failure behaviour from the same script:
 
@@ -63,6 +65,18 @@ Failure behaviour from the same script:
 | Agent requests a page with no markdown twin | 404 | HTML page (200) |
 | `.md` request whose render throws | throws | 503 markdown with `Retry-After` |
 | `.md` request whose remote source hangs | not supported | 503 after the timeout |
+
+## Prerendering
+
+`agentside/build` writes every twin to a static file at build time, so a CDN can serve `/pricing.md` without running any code. A twin that throws fails the build and lists every failing path; a twin that returns `null` is skipped.
+
+```ts
+import { prerender } from "agentside/build";
+
+await prerender({ routes }, { outDir: "dist/client", paths: ["/", "/pricing", "/blog/hello"] });
+```
+
+`paths` defaults to every route without parameters. Keep `handle` in front for `Accept` and user agent negotiation, or add CDN rewrites that send those requests to the `.md` file.
 
 ## Repository
 

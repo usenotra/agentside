@@ -13,7 +13,7 @@
     "effect"
   ],
   "license": "MIT",
-  "homepage": "https://github.com/usenotra/agentside#readme",
+  "homepage": "https://agentside.usenotra.com",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/usenotra/agentside.git",
@@ -32,6 +32,10 @@
     "./effect": {
       "types": "./dist/effect.d.ts",
       "default": "./dist/effect.js"
+    },
+    "./build": {
+      "types": "./dist/build.d.ts",
+      "default": "./dist/build.js"
     }
   },
   "scripts": {

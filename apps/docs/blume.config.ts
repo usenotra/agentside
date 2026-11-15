@@ -26,6 +26,10 @@ export default defineConfig({
       { href: "https://www.npmjs.com/package/agentside", label: "npm" },
     ],
   },
+  deployment: {
+    base: "/docs",
+    site: "https://agentside.usenotra.com",
+  },
   theme: {
     accent: { light: "#7c3aed", dark: "#a78bfa" },
   },

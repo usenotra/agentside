@@ -21,6 +21,7 @@ export interface Match {
 
 export interface Served {
   readonly body: string;
+  readonly tokens: number;
   readonly variant: string;
   readonly cached: boolean;
 }
@@ -115,7 +116,10 @@ export const make = Effect.fnUntraced(function* (config: AgentsideConfig) {
   const render = (key: Key) =>
     loadSource(key.source, key.context, timeoutMs, retries).pipe(
       Effect.flatMap((body) => (body === null ? Effect.fail(new NotFound({ path: key.path })) : Effect.succeed(body))),
-      Effect.map((body) => (config.normalize === false ? body : normalizeUnicode(body)))
+      Effect.map((raw) => {
+        const body = config.normalize === false ? raw : normalizeUnicode(raw);
+        return { body, tokens: estimateTokens(body), renderedAt: performance.now() };
+      })
     );
 
   const cache =
@@ -126,12 +130,14 @@ export const make = Effect.fnUntraced(function* (config: AgentsideConfig) {
           timeToLive: (exit) => (Exit.isSuccess(exit) ? (config.cache ? (config.cache.ttlMs ?? 300_000) : 300_000) : 0),
         });
 
-  const load = (key: Key) =>
-    cache
-      ? Effect.flatMap(Cache.has(cache, key), (cached) =>
-          Effect.map(Cache.get(cache, key), (body) => ({ body, cached }))
-        )
-      : Effect.map(render(key), (body) => ({ body, cached: false }));
+  const load = (key: Key) => {
+    const started = performance.now();
+    return Effect.map(cache ? Cache.get(cache, key) : render(key), ({ body, tokens, renderedAt }) => ({
+      body,
+      tokens,
+      cached: renderedAt < started,
+    }));
+  };
 
   const match = (path: string): Match | null => {
     const source = exact.get(path);
@@ -172,11 +178,17 @@ export const make = Effect.fnUntraced(function* (config: AgentsideConfig) {
   return { match, serve };
 });
 
-export function markdownResponse(body: string, config: AgentsideConfig, status = 200, extra?: Record<string, string>) {
+export function markdownResponse(
+  body: string,
+  config: AgentsideConfig,
+  status = 200,
+  extra?: Record<string, string>,
+  tokens = estimateTokens(body)
+) {
   const headers = new Headers({
     "Content-Type": "text/markdown; charset=utf-8",
     "X-Content-Type-Options": "nosniff",
-    "X-Markdown-Tokens": String(estimateTokens(body)),
+    "X-Markdown-Tokens": String(tokens),
     Vary: "Accept, User-Agent",
     "Cache-Control": config.cacheControl ?? "public, max-age=3600",
     ...extra,

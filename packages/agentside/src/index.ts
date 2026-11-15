@@ -46,18 +46,25 @@ export function agentside(config: AgentsideConfig) {
   const isSkipped = (pathname: string) =>
     skip.some((prefix) => pathname === prefix || pathname.startsWith(prefix.endsWith("/") ? prefix : `${prefix}/`));
 
-  async function render(request: Request, pathname: string): Promise<Response> {
+  async function render(
+    request: Request,
+    pathname: string,
+    agent = detectAgent(request.headers.get("user-agent"))
+  ): Promise<Response> {
     const started = performance.now();
     const path = toPagePath(pathname);
-    const agent = detectAgent(request.headers.get("user-agent"));
     const exit = await Effect.runPromiseExit(server.serve(path, request, agent));
 
     if (Exit.isSuccess(exit)) {
-      const { body, variant, cached } = exit.value;
+      const { body, tokens, variant, cached } = exit.value;
       config.onServe?.({ path, variant, agent, status: 200, cached, durationMs: performance.now() - started });
-      return markdownResponse(request.method === "HEAD" ? "" : body, config, 200, {
-        "X-Agentside-Variant": variant,
-      });
+      return markdownResponse(
+        request.method === "HEAD" ? "" : body,
+        config,
+        200,
+        { "X-Agentside-Variant": variant },
+        tokens
+      );
     }
 
     const error = exit.cause.reasons.find((reason) => reason._tag === "Fail")?.error;
@@ -82,8 +89,9 @@ export function agentside(config: AgentsideConfig) {
 
       const accept = request.headers.get("accept");
       const format = negotiateFormat(accept);
-      if (format === "markdown" || detectAgent(request.headers.get("user-agent"))) {
-        const response = await render(request, pathname);
+      const agent = detectAgent(request.headers.get("user-agent"));
+      if (format === "markdown" || agent) {
+        const response = await render(request, pathname, agent);
         if (response.ok) return response;
         return setHeaders(await next(), { Vary: "Accept, User-Agent" });
       }

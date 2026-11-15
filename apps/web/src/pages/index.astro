@@ -3,7 +3,7 @@ import { Code } from "astro:components";
 import "../styles/global.css";
 
 const GITHUB_URL = "https://github.com/usenotra/agentside";
-const DOCS_URL = "https://docs.agentside.dev";
+const DOCS_URL = "/docs";
 const NOTRA_URL = "https://usenotra.com";
 const BENCHMARKS_URL = `${GITHUB_URL}#benchmarks`;
 
@@ -248,9 +248,10 @@ const failures = [
               <p class="kicker">Benchmarks</p>
               <h2>Measured against Dualmark</h2>
               <p>
-                On Bun 1.4 against Dualmark 0.11, an agent request for a markdown page takes 8.5 µs instead of
-                52.6 µs (6.2x faster), and still 2.8x faster with the cache turned off. Detecting an AI agent from
-                its user agent is 9 to 12 times faster, and a normal browser request passes through 1.3x faster.
+                On Bun 1.4 against Dualmark 0.11, an agent request for a markdown page takes 2.7 µs instead of
+                41.2 µs (15x faster), and is still 2.7x faster with the cache turned off. Detecting an AI agent from
+                its user agent is 9 to 12 times faster, and a normal browser request passes through 1.5x faster.
+                With prerendering, the CDN serves twins as static files and no code runs at all.
                 The harness is in the repository so you can run it yourself.
               </p>
             </div>
