@@ -1,7 +1,17 @@
 ---
 title: Hono
-description: Serve markdown twins from a Hono middleware.
+description: Serve markdown twins from a Hono middleware, or convert a site generated with Hono's SSG helper.
 ---
+
+<Icon icon="/logos/hono.svg" size={40} label="Hono" />
+
+## Install
+
+```bash
+npm install @usenotra/agentside
+```
+
+## Mount the middleware
 
 Register Agentside as the first middleware. `c.req.raw` is the fetch `Request` and `c.res` holds the response once `next()` has run.
 
@@ -36,3 +46,23 @@ export const twins = agentside({
 ```
 
 When Agentside answers with markdown, the middleware returns that response and the route handler never runs.
+
+## Static output
+
+If you generate a static site with `toSSG` from `hono/ssg`, convert its output folder after it runs.
+
+```ts build.ts
+import { toSSG } from "hono/ssg";
+import fs from "node:fs/promises";
+import { prerenderHtml, vercelRoutes } from "@usenotra/agentside/build";
+
+import app from "./src/index";
+
+await toSSG(app, fs, { dir: "./static" });
+
+const pages = await prerenderHtml({ dir: "static", siteUrl: "https://acme.dev", llms: { title: "Acme" } });
+
+await Bun.write("vercel.json", JSON.stringify(vercelRoutes(pages.map((page) => page.path)), null, 2));
+```
+
+See [Static sites](/static-sites) for the conversion rules and the `vercel.json` routes.

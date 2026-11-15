@@ -1,18 +1,74 @@
 ---
 title: Migrating from Dualmark
-description: Map a Dualmark route handler and middleware to Agentside routes and a single handle call.
+description: Move a Next.js app from Dodo Payments' Dualmark to Agentside, with an API mapping, behaviour differences and a before and after example.
 sidebar:
   order: 9
 ---
 
-Dualmark splits markdown twins into a middleware that rewrites requests to an internal `/md` namespace and a route handler that renders them. Agentside does both in one `handle` call, so the migration removes the rewrite, the internal route and `generateStaticParams`.
+<Icon icon="/logos/dodo-payments.svg" size={40} label="Dodo Payments" />
+
+[Dualmark](https://github.com/dodopayments/dualmark) by Dodo Payments serves markdown twins from a Next.js middleware that rewrites requests into an internal `/md` namespace and a catch-all route handler that renders them. Agentside does both in one `handle` call, so the migration removes the rewrite, the internal route and `generateStaticParams`. This guide is written against Dualmark 0.11.
+
+## Swap the packages
+
+```bash
+npm uninstall @dualmark/core @dualmark/nextjs @dualmark/converters
+npm install @usenotra/agentside
+```
+
+| Dualmark package | Agentside import |
+| --- | --- |
+| `@dualmark/core` | `@usenotra/agentside` for helpers, `@usenotra/agentside/effect` for `markdownResponse` |
+| `@dualmark/nextjs` | `@usenotra/agentside` for `agentside()`, `@usenotra/agentside/build` for prerendering and `llms.txt` |
+| `@dualmark/converters` | No equivalent. Keep your own render functions, or convert your built HTML with `prerenderHtml`. |
+
+Remove `withDualmark` from `next.config.ts`. Agentside ships compiled ESM and needs no `transpilePackages` entry.
+
+## API mapping
+
+### Configuration
+
+| Dualmark | Agentside |
+| --- | --- |
+| `createDualmarkMiddleware(config)` in `middleware.ts` | `twins.handle(request, () => NextResponse.next())` in `proxy.ts` or `middleware.ts` |
+| `createDualmarkRouteHandler(config)` at `app/md/[...path]/route.ts` | Not needed. `handle` answers `.md` URLs itself. If you keep a route handler, call `twins.serve(request, pathname)`. |
+| `siteUrl` | Not needed at runtime. Pass it to `prerender` or `prerenderHtml` for absolute URLs. |
+| `internalNamespace` | Not needed |
+| `staticPages: [{ pattern, render }]` | `routes: { [pattern]: render }` |
+| `collections.blog` with `getEntries` and `converter` | A `"/blog/[slug]"` route that looks up the entry and returns markdown, or `null` when it doesn't exist |
+| `slugStrategy: "catch-all"` | A `"/blog/[...slug]"` route |
+| `filter` | Return `null` for entries the filter would drop |
+| `emitListing` and `listingMetadata` | An explicit `"/blog"` route that renders the listing |
+| `parameterizedRoutes: [{ pattern, getStaticPaths, render }]` | `routes: { [pattern]: ({ params }) => ... }`. Return `null` for params `getStaticPaths` wouldn't have listed, and pass the same paths to `prerender` if you want static files. |
+| `generateStaticParams` | `prerender(config, { outDir, paths })` from `@usenotra/agentside/build` |
+| `middleware.skipPaths` | `skip` |
+| `middleware.injectLinkHeader` | `linkHeader` |
+| `headers.cacheControl` | `cacheControl` |
+| `headers.noindex` | `noindex` |
+| `tokenizer` | Not configurable. `X-Markdown-Tokens` uses a whitespace estimate. |
+| `llmsTxt` and `createLlmsTxtHandler({ brandName, description, sections })` | `prerenderHtml({ llms: { title, description } })`, or `llmsTxt(pages, { title, description, siteUrl })` for your own page list |
+
+### Helpers from @dualmark/core
+
+| Dualmark | Agentside |
+| --- | --- |
+| `detectAIBot(userAgent)` returning `{ isBot, name, vendor, purpose }` | `detectAgent(userAgent)` returning `{ name, vendor, purpose }` or `null` |
+| `AI_BOTS` | `KNOWN_AGENTS` |
+| `negotiateFormat(accept, available?)` | `negotiateFormat(accept, mode?)`, which returns `"markdown"`, `"html"` or `null` and accepts a missing header |
+| `shouldServeMarkdown(accept, isBot)` | Built into `handle`. For your own checks, `negotiateFormat(accept) === "markdown" \|\| detectAgent(userAgent) !== null`. |
+| `toMarkdownPath(pathname)` | `toMarkdownPath(pathname)`, same mapping (`/` to `/index.md`) |
+| `toMarkdownUrl(url)` | `toMarkdownPath(url.pathname)` on a `URL` |
+| `markdownResponse(body, { cacheControl, noindex, status, extraHeaders })` | `markdownResponse(body, config, status?, extraHeaders?)` from `@usenotra/agentside/effect` |
+| `injectMarkdownAlternateLink(response, htmlUrl, mdUrl)` | Built into `handle`, controlled by `linkHeader` |
+| `estimateTokens`, `normalizeUnicode` | `estimateTokens`, `normalizeUnicode` |
+| `renderLlmsTxt(options)` | `llmsTxt(pages, options)` from `@usenotra/agentside/build` |
 
 ## Before
 
-```ts app/md/[...path]/route.ts
-import { createDualmarkRouteHandler } from "@dualmark/nextjs";
+```ts lib/dualmark.ts
+import type { DualmarkNextConfig } from "@dualmark/nextjs";
 
-const handler = createDualmarkRouteHandler({
+export const dualmarkConfig: DualmarkNextConfig = {
   siteUrl: "https://acme.dev",
   staticPages: [
     { pattern: "/", render: () => "# Acme\n\nAcme sends invoices your customers actually pay." },
@@ -22,6 +78,7 @@ const handler = createDualmarkRouteHandler({
     blog: {
       converter: "blog",
       getEntries: () => getPosts(),
+      listingMetadata: { title: "Blog", description: "News from Acme." },
     },
   },
   parameterizedRoutes: [
@@ -31,44 +88,70 @@ const handler = createDualmarkRouteHandler({
       render: ({ params }) => renderTaxPage(params.country),
     },
   ],
+  middleware: { skipPaths: ["/api"] },
   headers: { cacheControl: "public, max-age=600" },
-});
+};
+```
+
+```ts app/md/[...path]/route.ts
+import { createDualmarkRouteHandler } from "@dualmark/nextjs";
+
+import { dualmarkConfig } from "@/lib/dualmark";
+
+const handler = createDualmarkRouteHandler(dualmarkConfig);
 
 export const GET = handler.GET;
 export const generateStaticParams = handler.generateStaticParams;
 ```
 
-```ts proxy.ts
+```ts middleware.ts
 import { createDualmarkMiddleware } from "@dualmark/nextjs";
 
-const middleware = createDualmarkMiddleware({
-  siteUrl: "https://acme.dev",
-  middleware: { skipPaths: ["/api"] },
-});
+import { dualmarkConfig } from "@/lib/dualmark";
 
-export default middleware;
-export const config = middleware.config;
+export default createDualmarkMiddleware(dualmarkConfig);
+
+export const config = {
+  matcher: [
+    {
+      source: "/((?!_next/|favicon.ico|md/).*)",
+      missing: [{ type: "header", key: "next-router-prefetch" }],
+    },
+  ],
+};
+```
+
+```ts app/llms.txt/route.ts
+import { createLlmsTxtHandler } from "@dualmark/nextjs";
+
+export const { GET } = createLlmsTxtHandler({
+  brandName: "Acme",
+  description: "Invoices your customers actually pay.",
+  sections: [{ title: "Pages", links: [{ title: "Pricing", href: "https://acme.dev/pricing.md" }] }],
+});
 ```
 
 ## After
 
 ```ts lib/agentside.ts
-import { agentside } from "@usenotra/agentside";
+import { agentside, type AgentsideConfig } from "@usenotra/agentside";
 
-export const twins = agentside({
+export const agentsideConfig: AgentsideConfig = {
   routes: {
     "/": "# Acme\n\nAcme sends invoices your customers actually pay.",
     "/pricing": () => renderPricingMarkdown(),
     "/blog": async () => renderBlogIndex(await getPosts()),
     "/blog/[slug]": async ({ params }) => {
-      const post = (await getPosts()).find((entry) => entry.id === params.slug);
+      const post = (await getPosts()).find((entry) => entry.slug === params.slug);
       return post ? renderPostMarkdown(post) : null;
     },
     "/tax/[country]": ({ params }) => (COUNTRIES.includes(params.country) ? renderTaxPage(params.country) : null),
   },
   skip: ["/api"],
   cacheControl: "public, max-age=600",
-});
+};
+
+export const twins = agentside(agentsideConfig);
 ```
 
 ```ts proxy.ts
@@ -81,33 +164,70 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/|favicon.ico).*)"],
+  matcher: [
+    {
+      source: "/((?!_next/|favicon.ico).*)",
+      missing: [{ type: "header", key: "next-router-prefetch" }],
+    },
+  ],
 };
 ```
 
-Delete `app/md/[...path]/route.ts`. Agentside answers `.md` URLs in the middleware, so the internal namespace is no longer needed.
+On Next.js 15 and earlier, name the file `middleware.ts` and the function `middleware`. Then delete `app/md/[...path]/route.ts` and `lib/dualmark.ts`.
 
-## Mapping
+`renderPostMarkdown` replaces the `"blog"` converter. Keep the custom converter function you passed to Dualmark, or render the post body yourself.
 
-| Dualmark | Agentside |
-| --- | --- |
-| `staticPages: [{ pattern, render }]` | `routes: { [pattern]: render }` |
-| `collections.blog` with `getEntries` and a converter | `"/blog/[slug]"` that finds the entry and returns markdown, or `null` when it does not exist |
-| The collection listing at `/blog.md` | An explicit `"/blog"` route |
-| `parameterizedRoutes: [{ pattern, getStaticPaths, render }]` | `routes: { [pattern]: ({ params }) => ... }`. Return `null` for params that `getStaticPaths` would not have listed. |
-| `slugStrategy: "catch-all"` | A `[...slug]` segment |
-| `createDualmarkMiddleware()` and the `/md` route handler | `twins.handle(request, next)` |
-| `internalNamespace` | Not needed |
-| `middleware.skipPaths` | `skip` |
-| `middleware.injectLinkHeader` | `linkHeader` |
-| `headers.cacheControl` | `cacheControl` |
-| `headers.noindex` | `noindex` |
+### Static files instead of generateStaticParams
 
-## What changes for agents
+Dualmark prerenders twins through `generateStaticParams`. Agentside renders on request and caches the result, which needs no build step. If you still want static `.md` files, for example on a static export, prerender them after `next build`:
 
-- Twins render on request and are cached for five minutes instead of being prerendered at build time. Tune this with [`cache`](/caching).
-- A broken twin on a negotiated request falls back to your HTML page instead of an error response.
-- Markdown can come from a CMS or another service with [`remote()`](/routes#remote-sources), which retries and times out on its own.
-- You can serve [different twins to different agents](/variants) and track exposures with `onServe`.
+```ts scripts/agentside.ts
+import { prerender } from "@usenotra/agentside/build";
 
-Dualmark's built-in converters turn collection entries into markdown. Agentside does not ship converters, so keep calling the function you used as a custom converter or render the entry body yourself.
+import { agentsideConfig } from "@/lib/agentside";
+
+await prerender(agentsideConfig, {
+  outDir: "out",
+  paths: ["/", "/pricing", "/blog", ...(await getPosts()).map((post) => `/blog/${post.slug}`), ...COUNTRIES.map((country) => `/tax/${country}`)],
+});
+```
+
+A twin that throws fails the build and lists every failing path. A twin that returns `null` is skipped.
+
+### llms.txt
+
+If your pages are static, `prerenderHtml` converts the built HTML and writes `llms.txt` and `llms-full.txt` from each page's title and description, so you can delete the `llms.txt` route.
+
+```ts
+import { prerenderHtml } from "@usenotra/agentside/build";
+
+await prerenderHtml({
+  dir: "out",
+  siteUrl: "https://acme.dev",
+  llms: { title: "Acme", description: "Invoices your customers actually pay." },
+});
+```
+
+For a server-rendered app, build the file from your own page list with `llmsTxt(pages, { title, description, siteUrl })` and return it from the same route. See [Static sites](/static-sites#llmstxt-and-llms-fulltxt).
+
+## Behaviour differences
+
+| Situation | Dualmark | Agentside |
+| --- | --- | --- |
+| An agent asks for a page whose render throws | The request throws | Your HTML page (200) |
+| An agent asks for a page without a twin | 404 | Your HTML page (200) |
+| A `.md` request whose render throws | The request throws | Markdown 503 with `Retry-After: 30` |
+| A `.md` request for a page without a twin | 404 | Markdown 404 |
+| A known AI agent sends `Accept: text/html` | HTML | Markdown. The user agent is enough. |
+| Twins | Prerendered at build time | Rendered on request and cached for five minutes, or prerendered with `@usenotra/agentside/build` |
+
+A negotiated request is one that Agentside answered with markdown because of the `Accept` header or the user agent. Those visitors asked for your page, so a broken or missing twin falls back to the page instead of an error. See [Error handling](/error-handling).
+
+Every markdown response carries `Vary: Accept, User-Agent`, and an HTML response that fell back after a negotiated request gets the same `Vary`, so a shared cache never hands a twin to a browser. Each markdown response also says which variant it served in `X-Agentside-Variant`, `control` unless you set up [A/B variants](/variants).
+
+## What you gain
+
+- [`remote()`](/routes#remote-sources) loads markdown from a CMS or another deployment with a timeout and retries.
+- [Variants](/variants) serve different twins to different agents and `onServe` reports each exposure.
+- [Typed errors](/error-handling#typed-errors) and the raw Effect program through `@usenotra/agentside/effect`.
+- One handler for every framework, so you can move off Next.js without changing your twins. See the [framework guides](/frameworks).

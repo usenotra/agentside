@@ -13,6 +13,8 @@ npm install @usenotra/agentside
 
 Agentside ships ESM with TypeScript types and depends on `effect`.
 
+There are two ways to set it up. If your pages render on demand, or your twins come from a CMS, describe them as routes and mount the handler as shown below. If your pages are prerendered, skip to [Convert a static build](#convert-a-static-build) and you won't write any markdown.
+
 ## Describe your twins
 
 Create one module that owns the config. Each key in `routes` is a page path and each value is the source of its markdown twin.
@@ -63,3 +65,22 @@ export const GET = (request: Request) => twins.serve(request);
 ```
 
 Pass a pathname as the second argument when the request URL differs from the page path, for example `twins.serve(request, "/pricing")`.
+
+## Convert a static build
+
+For a static site, run `prerenderHtml` after your framework's build. It converts each page's `<main>` to a `.md` file next to the HTML and writes `llms.txt` and `llms-full.txt`.
+
+```ts scripts/agentside.ts
+import { prerenderHtml, vercelRoutes } from "@usenotra/agentside/build";
+
+const pages = await prerenderHtml({
+  dir: "dist",
+  siteUrl: "https://acme.dev",
+  llms: { title: "Acme", description: "Acme sends invoices your customers actually pay." },
+});
+
+await Bun.write("vercel.json", JSON.stringify(vercelRoutes(pages.map((page) => page.path)), null, 2));
+```
+
+`vercelRoutes` adds the CDN rules that send `Accept: text/markdown` and known AI agents to the `.md` files. Add `data-ai-ignore` to anything agents should skip. [Static sites](/static-sites) covers the conversion rules, adapters that write `.vercel/output` and mixing both approaches.
+

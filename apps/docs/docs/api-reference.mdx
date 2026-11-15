@@ -1,6 +1,6 @@
 ---
 title: API reference
-description: Every export of agentside and agentside/effect with its signature and defaults.
+description: Every export of @usenotra/agentside, @usenotra/agentside/effect and @usenotra/agentside/build with its signature and defaults.
 sidebar:
   order: 10
 ---
@@ -22,7 +22,7 @@ function agentside(config: AgentsideConfig): {
 | --- | --- | --- | --- |
 | `routes` | `Record<string, Source>` | required | Page paths or patterns mapped to their twin's source. |
 | `variants` | `Record<string, Variant[]>` | `{}` | Variants per route pattern. See [A/B variants](/variants). |
-| `accept` | `"q-value" \| "contains"` | `"q-value"` | `"contains"` serves markdown whenever `Accept` mentions `text/markdown`, matching CDN rules that can't parse q-values. |
+| `accept` | `"contains" \| "q-value"` | `"contains"` | `"contains"` serves markdown whenever `Accept` mentions `text/markdown`, matching CDN rules that can't parse q-values. `"q-value"` weighs q-values strictly. See [Content negotiation](/negotiation#the-accept-header). |
 | `skip` | `string[]` | `[]` | Path prefixes that `handle` never touches. |
 | `cache` | `{ ttlMs?, capacity? } \| false` | `{ ttlMs: 300000, capacity: 1000 }` | In-memory cache settings. See [Caching](/caching). |
 | `timeoutMs` | `number` | `5000` | Timeout for each source load, including retries. |
@@ -93,7 +93,7 @@ interface ServeEvent {
 | --- | --- | --- |
 | `detectAgent` | `(userAgent: string \| null \| undefined) => Agent \| null` | Detects a known AI agent from a user agent. |
 | `KNOWN_AGENTS` | `readonly Agent[]` | Every agent `detectAgent` recognizes. |
-| `negotiateFormat` | `(accept: string \| null \| undefined) => Format \| null` | Picks markdown or HTML from an `Accept` header, or `null` when neither is acceptable. |
+| `negotiateFormat` | `(accept: string \| null \| undefined, mode?: "q-value" \| "contains") => Format \| null` | Picks markdown or HTML from an `Accept` header, or `null` when neither is acceptable. `mode` defaults to `"q-value"`. |
 | `toMarkdownPath` | `(pathname: string) => string` | Maps a page path to its twin URL, `/pricing` to `/pricing.md` and `/` to `/index.md`. |
 | `estimateTokens` | `(text: string) => number` | The whitespace-based estimate sent as `X-Markdown-Tokens`. |
 | `normalizeUnicode` | `(text: string) => string` | The normalization applied when `normalize` is on. |
@@ -116,6 +116,17 @@ See [Effect API](/effect) for an example.
 
 ## agentside/build
 
+Build-time helpers, imported from `@usenotra/agentside/build`. They use `node:fs` and run in Node and Bun, not at the edge.
+
+### prerender
+
+```ts
+function prerender(
+  config: AgentsideConfig,
+  options: { outDir: string; paths?: string[]; siteUrl?: string }
+): Promise<{ written: string[]; skipped: string[] }>;
+```
+
 ```ts
 import { prerender } from "@usenotra/agentside/build";
 
@@ -126,30 +137,93 @@ const { written, skipped } = await prerender(config, {
 });
 ```
 
-`prerender` renders each path once with the cache off and writes it to `outDir` at its `.md` URL (`/` becomes `index.md`). `paths` defaults to every route without parameters. Twins that return `null` end up in `skipped`. If any twin fails, it throws one error listing every failing path, so a broken twin stops the build instead of reaching agents.
+`prerender` renders each path once with the cache off and writes it to `outDir` at its `.md` URL (`/` becomes `index.md`). `paths` defaults to every route without parameters. `siteUrl` is the origin of the `Request` your sources receive and defaults to `http://localhost`. Twins that return `null` end up in `skipped`. If any twin fails, it throws one error listing every failing path, so a broken twin stops the build instead of reaching agents.
 
 ### prerenderHtml
+
+```ts
+function prerenderHtml(options: PrerenderHtmlOptions): Promise<PrerenderedPage[]>;
+
+interface PrerenderHtmlOptions {
+  readonly dir: string;
+  readonly outDir?: string;
+  readonly selector?: string;
+  readonly siteUrl?: string;
+  readonly exclude?: readonly string[];
+  readonly llms?: { readonly title: string; readonly description?: string; readonly sections?: Record<string, string> } | false;
+  readonly normalize?: boolean;
+}
+
+interface PrerenderedPage {
+  readonly path: string;
+  readonly title: string;
+  readonly description: string;
+  readonly markdown: string;
+}
+```
 
 ```ts
 import { prerenderHtml } from "@usenotra/agentside/build";
 
 const pages = await prerenderHtml({
   dir: "dist",
-  outDir: "dist",
   siteUrl: "https://example.com",
-  selector: "main",
   exclude: ["/admin"],
-  llms: { title: "Acme", description: "We make anvils." },
+  llms: { title: "Acme", description: "We make anvils.", sections: { "/legal": "Legal" } },
 });
 ```
 
-Converts every built `.html` file in `dir` (except `404.html` and `500.html`) to markdown and writes it to `outDir` at its `.md` URL. Only the `selector` element is converted, which defaults to `<main>`, then `<article>`, then `<body>`. Elements with `data-ai-ignore` are dropped, elements with `data-ai-content` are replaced by the attribute's markdown, `<dl>` lists become `**term**: definition` items, cards (a link wrapping a heading) become `[Heading](url): text` and tables become GFM tables. With `llms`, it also writes `llms.txt` and `llms-full.txt`. Returns the converted pages; any failure throws one error listing every failing path.
+Converts every built `.html` file in `dir` (except `404.html` and `500.html`) to markdown and writes it to `outDir`, which defaults to `dir`, at its `.md` URL. Only the `selector` element is converted, which defaults to `<main>`, then `<article>`, then `<body>`. `data-ai-ignore` drops an element, `data-ai-content` replaces it with the attribute's markdown, tables become GFM tables, `<dl>` lists become `**term**: definition` items and cards become a linked heading followed by their text. `normalize: true` applies `normalizeUnicode` to the output, which is off by default. With `llms`, it also writes `llms.txt` and `llms-full.txt`. Returns the converted pages sorted by path; any failure throws one error listing every failing path. See [Static sites](/static-sites) for every rule.
 
 ### htmlToMarkdown
 
-`htmlToMarkdown(html, { selector?, siteUrl? })` converts a single HTML document with the same rules.
+```ts
+function htmlToMarkdown(html: string, options?: { selector?: string; siteUrl?: string }): string;
+```
+
+Converts a single HTML document with the same rules as `prerenderHtml`, without Unicode normalization.
+
+### llmsTxt and llmsFullTxt
+
+```ts
+function llmsTxt(
+  pages: readonly PrerenderedPage[],
+  options: { title: string; description?: string; siteUrl?: string; sections?: Record<string, string> }
+): string;
+
+function llmsFullTxt(pages: readonly PrerenderedPage[]): string;
+```
+
+`llmsTxt` lists each page as a link to its `.md` URL, prefixed with `siteUrl`, grouped into `##` sections. Top-level pages without children go under "Pages", other pages are grouped by their first path segment, and `sections` maps a path prefix to a section title that wins over the default. `llmsFullTxt` joins every page's markdown with `---`.
 
 ### vercelRoutes
 
-`vercelRoutes(paths?)` returns `{ rewrites, headers }` for `vercel.json`. Requests with `Accept: text/markdown` or a known AI agent user agent are rewritten to the page's `.md` file, and `.md` responses get `Content-Type: text/markdown`, `Vary` and `X-Robots-Tag`. Without `paths` it covers every path without a file extension; with `paths` it covers only those pages. Set `accept: "contains"` on any `agentside()` handler that sits behind these rules so both layers make the same decision.
+```ts
+function vercelRoutes(paths?: readonly string[]): {
+  routes: Array<{
+    src: string;
+    dest?: string;
+    has?: Array<{ type: "header"; key: string; value: string }>;
+    headers: Record<string, string>;
+    continue?: boolean;
+  }>;
+};
+```
 
+```ts
+import { vercelRoutes } from "@usenotra/agentside/build";
+
+await Bun.write("vercel.json", JSON.stringify(vercelRoutes(), null, 2));
+```
+
+Returns Vercel's `routes` array, which runs before the static file lookup. Requests with `Accept: text/markdown` or a known AI agent user agent are rewritten to the page's `.md` file with `Content-Type: text/markdown; charset=utf-8`, `Vary: Accept, User-Agent` and `X-Robots-Tag: noindex`. Direct `.md` requests get the same headers, and HTML pages get `Link: </page.md>; rel="alternate"; type="text/markdown"` plus `Vary: Accept, User-Agent`. Without `paths` it covers every path without a file extension; with `paths` it covers only those pages.
+
+`routes` can't be combined with `rewrites`, `redirects`, `headers`, `cleanUrls` or `trailingSlash` in the same `vercel.json`.
+
+### applyVercelBuildOutput
+
+```ts
+function applyVercelBuildOutput(options?: { outputDir?: string; paths?: readonly string[] }): Promise<void>;
+```
+
+Reads `config.json` in `outputDir` (default `.vercel/output`), inserts the routes from `vercelRoutes(paths)` just before `{ "handle": "filesystem" }` and writes it back. Run it after a framework build that emits the Build Output API, such as `@astrojs/vercel`, SvelteKit's `adapter-vercel` or Nuxt's `vercel` preset.

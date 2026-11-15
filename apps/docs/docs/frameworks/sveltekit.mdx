@@ -1,0 +1,84 @@
+---
+title: SvelteKit
+description: Serve markdown twins from the SvelteKit handle hook, or convert a prerendered SvelteKit build.
+---
+
+<Icon icon="/logos/svelte.svg" size={40} label="SvelteKit" />
+
+## Install
+
+```bash
+npm install @usenotra/agentside
+```
+
+## Mount the hook
+
+SvelteKit runs the `handle` hook in `src/hooks.server.ts` for every request that reaches the server. `event.request` is the fetch `Request` and `resolve(event)` renders the page, so it maps directly onto `twins.handle`.
+
+```ts src/hooks.server.ts
+import type { Handle } from "@sveltejs/kit";
+
+import { twins } from "$lib/server/agentside";
+
+export const handle: Handle = ({ event, resolve }) => twins.handle(event.request, () => resolve(event));
+```
+
+```ts src/lib/server/agentside.ts
+import { agentside } from "@usenotra/agentside";
+
+import { getPost } from "$lib/server/posts";
+
+export const twins = agentside({
+  routes: {
+    "/": "# Acme\n\nAcme sends invoices your customers actually pay.",
+    "/blog/[slug]": async ({ params }) => (await getPost(params.slug))?.markdown ?? null,
+  },
+  skip: ["/_app", "/api"],
+});
+```
+
+`.md` URLs don't need their own routes. The hook answers them before SvelteKit looks for a page. If you already use other hooks, combine them with `sequence` from `@sveltejs/kit/hooks` and put Agentside first.
+
+Pages with `export const prerender = true` are rendered once at build time without a visitor's headers, so the hook can't negotiate them. Use the static output below for those pages.
+
+## Static output
+
+With `@sveltejs/adapter-static`, SvelteKit writes plain HTML to `build`. Convert it after the build instead of mounting the hook.
+
+```ts scripts/agentside.ts
+import { prerenderHtml, vercelRoutes } from "@usenotra/agentside/build";
+
+const pages = await prerenderHtml({
+  dir: "build",
+  siteUrl: "https://acme.dev",
+  llms: { title: "Acme" },
+});
+
+await Bun.write("vercel.json", JSON.stringify(vercelRoutes(pages.map((page) => page.path)), null, 2));
+```
+
+```json package.json
+{
+  "scripts": {
+    "build": "vite build && bun scripts/agentside.ts"
+  }
+}
+```
+
+Mark content agents should skip with `data-ai-ignore` and give charts a `data-ai-content` summary.
+
+### Deploying with adapter-vercel
+
+With `@sveltejs/adapter-vercel`, prerendered pages are served as static files and the hook keeps handling the rest. The adapter writes the site to `.vercel/output` with its own routing, so a `vercel.json` isn't the place for the rules. Convert the static pages there and insert the routes into the Build Output API config instead.
+
+```ts scripts/agentside.ts
+import { applyVercelBuildOutput, prerenderHtml } from "@usenotra/agentside/build";
+
+const pages = await prerenderHtml({ dir: ".vercel/output/static", siteUrl: "https://acme.dev", llms: { title: "Acme" } });
+
+await applyVercelBuildOutput({ paths: pages.map((page) => page.path) });
+```
+
+Run it after `vite build`, the same way as above.
+
+See [Static sites](/static-sites) for the conversion rules and the CDN routes.

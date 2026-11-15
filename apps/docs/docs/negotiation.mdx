@@ -2,7 +2,7 @@
 title: Content negotiation
 description: How Agentside decides whether a request gets markdown or HTML and which headers it sets.
 sidebar:
-  order: 3
+  order: 4
 ---
 
 `handle(request, next)` decides between your HTML page and the markdown twin from the URL, the `Accept` header and the `User-Agent` header. Only `GET` and `HEAD` requests are considered, and paths under a `skip` prefix go straight to `next()`.
@@ -10,7 +10,7 @@ sidebar:
 ## Decision order
 
 1. **The path ends in `.md`.** The request is explicit, so Agentside serves the twin. A missing twin gets a markdown 404 and a failing twin gets a markdown 503.
-2. **`Accept` prefers `text/markdown` or the user agent is a known AI agent.** Agentside serves the twin when it exists. When it is missing or fails, the request falls through to `next()` and the visitor gets your HTML page.
+2. **`Accept` mentions `text/markdown` or the user agent is a known AI agent.** Agentside serves the twin when it exists. When it is missing or fails, the request falls through to `next()` and the visitor gets your HTML page.
 3. **`Accept` rules out both HTML and markdown.** Agentside answers `406 Not Acceptable`.
 4. **Everything else** gets your HTML page from `next()`. When a route matches the path, the response gets a `Link` header pointing at the twin.
 
@@ -25,16 +25,25 @@ Set `linkHeader: false` to leave HTML responses without the `Link` header.
 
 ## The Accept header
 
-`negotiateFormat(accept)` returns `"markdown"`, `"html"` or `null`. A missing header means HTML. Otherwise Agentside weighs the q-values of `text/markdown` against `text/html` and `application/xhtml+xml`, with `*/*` and `text/*` counting for whichever side has no specific entry. Markdown has to score strictly higher, so a tie goes to HTML.
+By default `handle` serves markdown whenever `Accept` contains `text/markdown`, whatever its q-value. That is the only rule a CDN can express, so `handle` and the routes from [`vercelRoutes`](/static-sites#negotiating-at-the-cdn) always agree on the same request.
 
-| Accept | Result |
-| --- | --- |
-| *(none)* | `html` |
-| `text/html,*/*;q=0.8` | `html` |
-| `text/markdown` | `markdown` |
-| `text/markdown, text/html;q=0.9` | `markdown` |
-| `text/html, text/markdown` | `html` |
-| `application/json` | `null`, answered with 406 |
+Set `accept: "q-value"` to weigh q-values instead. Agentside then compares `text/markdown` against `text/html` and `application/xhtml+xml`, with `*/*` and `text/*` counting for whichever side has no specific entry. Markdown has to score strictly higher, so a tie goes to HTML.
+
+```ts
+agentside({ routes, accept: "q-value" });
+```
+
+| Accept | Default (`"contains"`) | `"q-value"` |
+| --- | --- | --- |
+| *(none)* | HTML | HTML |
+| `text/html,*/*;q=0.8` | HTML | HTML |
+| `text/markdown` | Markdown | Markdown |
+| `text/markdown, text/html;q=0.9` | Markdown | Markdown |
+| `text/html, text/markdown` | Markdown | HTML |
+| `text/html, text/markdown;q=0.5` | Markdown | HTML |
+| `application/json` | 406 | 406 |
+
+The same logic is exported as `negotiateFormat(accept, mode)`, which returns `"markdown"`, `"html"` or `null`. Unlike `handle`, its `mode` defaults to `"q-value"`.
 
 ## Agent detection
 

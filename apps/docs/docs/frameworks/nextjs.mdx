@@ -1,9 +1,19 @@
 ---
-title: Next.js middleware
-description: Serve markdown twins from Next.js middleware or proxy.ts.
+title: Next.js
+description: Serve markdown twins from Next.js proxy.ts or middleware.ts, or convert a static export.
 ---
 
-Next.js middleware runs before routing, so it can answer `.md` URLs and negotiated requests without any route handlers. On Next.js 16 the file is `proxy.ts` and the export is named `proxy`. On Next.js 15 and earlier it is `middleware.ts` with an export named `middleware`.
+<Icon icon="/logos/nextjs_icon_dark.svg" size={40} label="Next.js" />
+
+## Install
+
+```bash
+npm install @usenotra/agentside
+```
+
+## Mount the proxy
+
+Next.js middleware runs before routing, so it can answer `.md` URLs and negotiated requests without any route handlers. On Next.js 16 the file is `proxy.ts` and the export is named `proxy`. On Next.js 15 and earlier it is `middleware.ts` with an export named `middleware`. Put it at the project root, or in `src` if you use one.
 
 ```ts proxy.ts
 import { NextResponse, type NextRequest } from "next/server";
@@ -19,24 +29,42 @@ export const config = {
 };
 ```
 
+```ts middleware.ts
+import { NextResponse, type NextRequest } from "next/server";
+
+import { twins } from "@/lib/agentside";
+
+export function middleware(request: NextRequest) {
+  return twins.handle(request, async () => NextResponse.next());
+}
+
+export const config = {
+  matcher: ["/((?!_next/|api/|favicon.ico).*)"],
+};
+```
+
 `NextRequest` extends the fetch `Request`, so it can be passed straight to `handle`. For HTML pages Agentside adds `Link` and `Vary` to the `NextResponse.next()` response and Next.js merges those headers into the rendered page.
 
 ```ts lib/agentside.ts
-import { agentside } from "@usenotra/agentside";
+import { agentside, type AgentsideConfig } from "@usenotra/agentside";
 
 import { getPost } from "@/lib/posts";
 
-export const twins = agentside({
+export const agentsideConfig: AgentsideConfig = {
   routes: {
     "/": "# Acme\n\nAcme sends invoices your customers actually pay.",
     "/blog/[slug]": async ({ params }) => (await getPost(params.slug))?.markdown ?? null,
   },
-});
+};
+
+export const twins = agentside(agentsideConfig);
 ```
+
+Pages that Next.js serves statically still pass through the proxy on every request, so negotiation works for them too.
 
 ## Serving from a route handler
 
-If you would rather keep middleware out of it, rewrite `.md` URLs to a route handler and call `serve` there.
+If you would rather keep the proxy out of it, rewrite `.md` URLs to a route handler and call `serve` there.
 
 ```ts app/md/[...path]/route.ts
 import { twins } from "@/lib/agentside";
@@ -47,4 +75,42 @@ export async function GET(request: Request, { params }: { params: Promise<{ path
 }
 ```
 
-This only covers explicit `.md` URLs. Negotiation by `Accept` and user agent still needs the middleware.
+This only covers explicit `.md` URLs. Negotiation by `Accept` and user agent still needs the proxy.
+
+## Static output
+
+With `output: "export"` in `next.config.ts`, `next build` writes plain HTML to `out` and there is no proxy at runtime. Convert the export after the build.
+
+```ts scripts/agentside.ts
+import { prerenderHtml, vercelRoutes } from "@usenotra/agentside/build";
+
+const pages = await prerenderHtml({
+  dir: "out",
+  siteUrl: "https://acme.dev",
+  llms: { title: "Acme" },
+});
+
+await Bun.write("vercel.json", JSON.stringify(vercelRoutes(pages.map((page) => page.path)), null, 2));
+```
+
+```json package.json
+{
+  "scripts": {
+    "build": "next build && bun scripts/agentside.ts"
+  }
+}
+```
+
+To prerender twins from your `routes` instead of HTML, the way `generateStaticParams` prerenders pages, pass the paths to `prerender`:
+
+```ts
+import { prerender } from "@usenotra/agentside/build";
+
+import { agentsideConfig } from "@/lib/agentside";
+import { getPosts } from "@/lib/posts";
+
+const posts = await getPosts();
+await prerender(agentsideConfig, { outDir: "out", paths: ["/", ...posts.map((post) => `/blog/${post.slug}`)] });
+```
+
+See [Static sites](/static-sites) for the conversion rules and the `vercel.json` routes.

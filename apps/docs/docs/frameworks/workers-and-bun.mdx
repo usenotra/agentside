@@ -1,9 +1,20 @@
 ---
-title: Cloudflare Workers and Bun.serve
-description: Put Agentside in front of a plain fetch handler on Cloudflare Workers or Bun.
+title: Cloudflare Workers and Bun
+description: Put Agentside in front of a plain fetch handler on Cloudflare Workers or Bun.serve, with prerendered twins for static assets.
 ---
 
+<span class="inline-flex items-center gap-3">
+  <Icon icon="/logos/cloudflare-workers.svg" size={40} label="Cloudflare Workers" />
+  <Icon icon="/logos/bun.svg" size={40} label="Bun" />
+</span>
+
 Any runtime with a `fetch(request)` entry point can wrap its handler in `handle`.
+
+## Install
+
+```bash
+npm install @usenotra/agentside
+```
 
 ## Cloudflare Workers
 
@@ -38,6 +49,34 @@ Responses from `env.ASSETS.fetch` have immutable headers. Agentside detects that
 
 The in-memory cache lives per isolate. Rely on `Cache-Control` for caching across isolates and regions.
 
+### Static output on Workers
+
+If your assets are a static build, run `prerenderHtml` over the asset directory after the build so every page has a `.md` file next to it. Then let the Worker read those files from the asset binding instead of writing routes by hand.
+
+```ts src/worker.ts
+import { agentside } from "@usenotra/agentside";
+import { env } from "cloudflare:workers";
+
+const fromAssets = async (path: string, request: Request) => {
+  const response = await env.ASSETS.fetch(new URL(path, request.url));
+  return response.ok ? response.text() : null;
+};
+
+const twins = agentside({
+  routes: {
+    "/": ({ request }) => fromAssets("/index.md", request),
+    "/[...path]": ({ params, request }) => fromAssets(`/${params.path}.md`, request),
+  },
+  cache: false,
+});
+
+export default {
+  fetch: (request: Request) => twins.handle(request, () => env.ASSETS.fetch(request)),
+};
+```
+
+`cache: false` keeps the Worker from holding copies of files the asset layer already caches. Pages without a `.md` file return `null`, so agents get the HTML page.
+
 ## Bun.serve
 
 ```ts server.ts
@@ -59,3 +98,33 @@ Bun.serve({
 ```
 
 `app` is whatever renders your HTML, for example another framework's fetch handler.
+
+### Static output on Bun
+
+For a static folder served by Bun, convert it once after the build and read the generated files in a catch-all route.
+
+```ts server.ts
+import { agentside } from "@usenotra/agentside";
+import { prerenderHtml } from "@usenotra/agentside/build";
+
+await prerenderHtml({ dir: "public", llms: { title: "Acme" } });
+
+const twin = async (path: string) => {
+  const file = Bun.file(`public${path}`);
+  return (await file.exists()) ? file.text() : null;
+};
+
+const twins = agentside({
+  routes: {
+    "/": () => twin("/index.md"),
+    "/[...path]": ({ params }) => twin(`/${params.path}.md`),
+  },
+});
+
+Bun.serve({
+  port: 3000,
+  fetch: (request) => twins.handle(request, () => serveStatic(request)),
+});
+```
+
+`serveStatic` stands for whatever serves the folder today. Run `prerenderHtml` in your build step instead of at startup when the folder is large. If you deploy the folder to Vercel instead, write `vercelRoutes()` to `vercel.json` as described in [Static sites](/static-sites#negotiating-at-the-cdn).

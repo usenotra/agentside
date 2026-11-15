@@ -1,7 +1,18 @@
 ---
 title: TanStack Start
-description: Serve markdown twins from a TanStack Start request middleware.
+description: Serve markdown twins from a TanStack Start request middleware, or convert prerendered pages.
 ---
+
+<Icon icon="/logos/tanstack_light.svg" size={40} label="TanStack Start" class="dark:hidden" />
+<Icon icon="/logos/tanstack_dark.svg" size={40} label="TanStack Start" class="hidden dark:block" />
+
+## Install
+
+```bash
+npm install @usenotra/agentside
+```
+
+## Mount the request middleware
 
 Register a global request middleware in `src/start.ts`. It runs for every request, including server routes, so `.md` URLs work without adding routes.
 
@@ -43,3 +54,33 @@ export const twins = agentside({
   },
   skip: ["/api", "/_serverFn"],
 });
+```
+
+## Static output
+
+Pages that TanStack Start prerenders are written as HTML at build time and served without running the middleware. Turn on prerendering in the Vite plugin and convert the client output after `vite build`.
+
+```ts vite.config.ts
+import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+import { defineConfig } from "vite";
+
+export default defineConfig({
+  plugins: [tanstackStart({ prerender: { enabled: true, crawlLinks: true } })],
+});
+```
+
+```ts scripts/agentside.ts
+import { prerenderHtml, vercelRoutes } from "@usenotra/agentside/build";
+
+const pages = await prerenderHtml({
+  dir: "dist/client",
+  siteUrl: "https://acme.dev",
+  llms: { title: "Acme" },
+});
+
+await Bun.write("vercel.json", JSON.stringify(vercelRoutes(pages.map((page) => page.path)), null, 2));
+```
+
+The output folder depends on your deployment target. With a Nitro preset the prerendered pages land in `.output/public` instead, so point `dir` there. When the Nitro `vercel` preset writes `.vercel/output`, convert `.vercel/output/static` and call `applyVercelBuildOutput()` instead of writing `vercel.json`, as described in [Static sites](/static-sites#framework-adapters-with-the-build-output-api).
+
+The middleware keeps handling pages that render on demand. It serves markdown whenever `Accept` mentions `text/markdown`, the same rule the CDN uses, so both kinds of page behave alike.

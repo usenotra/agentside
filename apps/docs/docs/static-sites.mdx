@@ -1,0 +1,217 @@
+---
+title: Static sites
+description: Convert your built HTML to markdown twins at build time, write llms.txt and negotiate at the CDN without writing any markdown.
+sidebar:
+  order: 2
+---
+
+If your pages are prerendered, you don't have to write markdown twins by hand. `prerenderHtml` from `@usenotra/agentside/build` runs after your framework's build, reads every `.html` file and writes a markdown twin next to each page. A CDN then serves `/pricing.md` straight from disk, and a few routing rules send agents there from `/pricing`.
+
+Use this when your site is static or mostly static. Use [routes](/routes) and `handle` when a twin has to come from a CMS, depends on the request or should be [A/B tested](/variants). Both approaches serve the same URLs and headers, so you can mix them.
+
+## Convert the build output
+
+```ts scripts/agentside.ts
+import { prerenderHtml } from "@usenotra/agentside/build";
+
+const pages = await prerenderHtml({
+  dir: "dist",
+  siteUrl: "https://acme.dev",
+  exclude: ["/admin"],
+  llms: { title: "Acme", description: "Acme sends invoices your customers actually pay." },
+});
+
+console.log(`agentside: wrote ${pages.length} twins`);
+```
+
+Run it after the framework build, for example `"build": "astro build && bun scripts/agentside.ts"`. `prerenderHtml` is plain Node, so `node` or `tsx` work as well as Bun.
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `dir` | required | The folder with the built `.html` files. |
+| `outDir` | `dir` | Where the `.md` files, `llms.txt` and `llms-full.txt` go. |
+| `selector` | `main`, then `article`, then `body` | The element that holds the page content. |
+| `siteUrl` | | Makes relative links and image sources absolute and prefixes the links in `llms.txt`. |
+| `exclude` | `[]` | Path prefixes to skip, such as `/admin`. |
+| `llms` | | `{ title, description?, sections? }` writes `llms.txt` and `llms-full.txt`. Leave it out to skip both. |
+| `normalize` | `false` | Replaces typographic Unicode such as smart quotes and non-breaking spaces with ASCII, like [runtime twins](/routes#unicode-normalization) do. |
+
+`dist/index.html` becomes `dist/index.md`, `dist/pricing/index.html` and `dist/pricing.html` both become `dist/pricing.md`. `404.html` and `500.html` are skipped.
+
+If a page fails to convert, the build fails with one error that lists every failing path, so a broken twin never ships silently. The function returns the converted pages as `{ path, title, description, markdown }`, sorted by path.
+
+## What gets converted
+
+Only the content element is converted, so the header navigation and footer outside `<main>` are left out on their own. Inside it, a few rules turn page markup into markdown an agent can read.
+
+| Markup | Result |
+| --- | --- |
+| `data-ai-ignore` | The element and everything in it is left out. |
+| `data-ai-content="..."` | The element is replaced by the markdown in the attribute. Useful for charts, widgets and images. |
+| `<table>` | A GFM table. |
+| `<dl>` | A list of `**term**: definition` items. |
+| `<dl>` rows wrapped in a `<div>` | The same `**term**: definition` items. |
+| A link wrapping a heading and text (a card) | The heading at its own level with the link inside, such as `### [Heading](url)`, followed by the text. |
+| `<pre>` code blocks, including Shiki output with one `<span>` per line | A fenced code block with its line breaks and its language. |
+| `<nav>` inside the content, such as breadcrumbs or a table of contents | Left out. |
+| Images with an empty or missing `alt` | Left out, since they are decorative. |
+| `<script>`, `<style>`, `<svg>`, `<iframe>`, `<canvas>`, forms, buttons, `[hidden]` and `aria-hidden="true"` | Left out. |
+
+Tables are written without padding to save tokens. Only backticks and markers at the start of a line, such as `#`, `-`, `>` or `1.`, are escaped, so underscores in identifiers and text like `base64.` stay as written.
+
+When the content element has no `<h1>`, the page's `<h1>` or `<title>` is added as the heading.
+
+### Example
+
+```html dist/pricing/index.html
+<nav><a href="/">Home</a></nav>
+<main>
+  <h1>Pricing</h1>
+  <p>Every plan includes unlimited invoices.</p>
+  <div class="cookie-banner" data-ai-ignore>We use cookies. <button>Accept</button></div>
+  <div class="chart" data-ai-content="Revenue grew 40% in 2025, from $1.2M to $1.7M.">
+    <canvas></canvas>
+  </div>
+  <table>
+    <thead><tr><th>Plan</th><th>Price</th></tr></thead>
+    <tbody>
+      <tr><td>Starter</td><td>Free</td></tr>
+      <tr><td>Pro</td><td>$29/month</td></tr>
+    </tbody>
+  </table>
+  <dl>
+    <dt>Seats</dt><dd>Unlimited on every plan</dd>
+    <dt>Support</dt><dd>Email, and chat on Pro</dd>
+  </dl>
+  <a href="/docs/billing" class="card">
+    <h3>Billing docs</h3>
+    <p>How invoices, taxes and refunds work.</p>
+  </a>
+  <form><input name="email" /><button>Subscribe</button></form>
+</main>
+<footer>© Acme</footer>
+```
+
+With `siteUrl: "https://acme.dev"` this becomes:
+
+```md dist/pricing.md
+# Pricing
+
+Every plan includes unlimited invoices.
+
+Revenue grew 40% in 2025, from $1.2M to $1.7M.
+
+| Plan | Price |
+| --- | --- |
+| Starter | Free |
+| Pro | $29/month |
+
+- **Seats**: Unlimited on every plan
+- **Support**: Email, and chat on Pro
+
+### [Billing docs](https://acme.dev/docs/billing)
+
+How invoices, taxes and refunds work.
+```
+
+To convert a single document, for example in a test or a custom pipeline, call `htmlToMarkdown(html, { selector, siteUrl })`. It applies the same rules and returns the markdown string.
+
+## llms.txt and llms-full.txt
+
+With `llms`, `prerenderHtml` also writes two files to `outDir`.
+
+- **`llms.txt`** starts with the title and description and lists every page as a link to its `.md` twin, using the page's `<title>` and `<meta name="description">`.
+- **`llms-full.txt`** holds every twin in one file, separated by `---`, for agents that want the whole site in one request.
+
+Pages in `llms.txt` are grouped into `##` sections. Top-level pages without children go under "Pages" and the rest are grouped by their first path segment, so `/blog/launch` lands under "Blog" and `/docs/setup` under "Docs". `sections` maps a path prefix to a section title of your own and wins over the default.
+
+```ts
+await prerenderHtml({
+  dir: "dist",
+  siteUrl: "https://acme.dev",
+  llms: {
+    title: "Acme",
+    description: "Acme sends invoices your customers actually pay.",
+    sections: { "/legal": "Terms and policies" },
+  },
+});
+```
+
+```md llms.txt
+# Acme
+
+> Acme sends invoices your customers actually pay.
+
+## Pages
+
+- [Acme](https://acme.dev/index.md): Invoices your customers actually pay.
+- [Pricing | Acme](https://acme.dev/pricing.md): Plans for every team size.
+
+## Blog
+
+- [Blog | Acme](https://acme.dev/blog.md)
+- [We launched | Acme](https://acme.dev/blog/launch.md): Acme is live.
+
+## Terms and policies
+
+- [Privacy | Acme](https://acme.dev/legal/privacy.md)
+- [Terms | Acme](https://acme.dev/legal/terms.md)
+```
+
+`llmsTxt(pages, { title, description?, siteUrl?, sections? })` and `llmsFullTxt(pages)` are exported too, so you can build both files from your own list of pages.
+
+## Negotiating at the CDN
+
+Static pages never reach a function, so `handle` can't negotiate them. The routing layer has to send `Accept: text/markdown` and known AI agents to the `.md` file instead. On Vercel there are two ways to add those rules, depending on what your build writes.
+
+### Plain static output with vercel.json
+
+When Vercel serves a folder of files, `vercelRoutes()` returns a `routes` array for `vercel.json`. Vercel runs `routes` before it looks up a static file, which is what makes the rewrite work for prerendered pages.
+
+```ts scripts/agentside.ts
+import { prerenderHtml, vercelRoutes } from "@usenotra/agentside/build";
+
+const pages = await prerenderHtml({ dir: "dist", siteUrl: "https://acme.dev" });
+
+await Bun.write("vercel.json", JSON.stringify(vercelRoutes(pages.map((page) => page.path)), null, 2));
+```
+
+The generated routes:
+
+- rewrite `/` to `/index.md` and `/pricing` or `/pricing/` to `/pricing.md` when `Accept` contains `text/markdown` or the user agent matches a known AI agent,
+- set `Content-Type: text/markdown; charset=utf-8`, `Vary: Accept, User-Agent` and `X-Robots-Tag: noindex` on every markdown response, including direct `.md` requests,
+- add `Link: </pricing.md>; rel="alternate"; type="text/markdown"` and `Vary: Accept, User-Agent` to the HTML page, so agents can find the twin and the CDN cache never hands a cached HTML page to an agent.
+
+Without arguments, `vercelRoutes()` covers every path without a file extension. Pass the converted paths to rewrite only pages that have a twin, so an agent asking for a page without one still gets the HTML.
+
+<Callout type="warning">
+Vercel rejects a `vercel.json` that combines `routes` with `rewrites`, `redirects`, `headers`, `cleanUrls` or `trailingSlash`. If you rely on any of these, express them as `routes` entries and merge them with the generated ones.
+</Callout>
+
+### Framework adapters with the Build Output API
+
+Adapters that deploy to Vercel, such as `@astrojs/vercel`, SvelteKit's `adapter-vercel` and Nuxt's `vercel` preset, write their own routing to `.vercel/output/config.json`, the Build Output API. Run `applyVercelBuildOutput` after the framework build instead. It inserts the same routes into `.vercel/output/config.json`, just before `{ "handle": "filesystem" }`, so they run before the static files are looked up.
+
+```ts scripts/agentside.ts
+import { applyVercelBuildOutput, prerenderHtml } from "@usenotra/agentside/build";
+
+const pages = await prerenderHtml({ dir: ".vercel/output/static", siteUrl: "https://acme.dev" });
+
+await applyVercelBuildOutput({ paths: pages.map((page) => page.path) });
+```
+
+`outputDir` defaults to `.vercel/output` and `paths` works like the argument to `vercelRoutes`. Next.js is different: its proxy or middleware already runs in front of static pages, so mount `handle` there. See the [Next.js guide](/frameworks/nextjs).
+
+### Mixing static pages and handle
+
+`handle` serves markdown whenever `Accept` mentions `text/markdown`, which is exactly what the CDN rules do, so pages served by the CDN and pages rendered on demand make the same decision. CDN rules can't read q-values.
+
+If you only run `handle` and want strict q-value negotiation, opt in with `accept: "q-value"`. Then `Accept: text/html, text/markdown;q=0.5` gets HTML because HTML has the higher weight. Don't use it next to CDN rules, or the same request can get markdown from one layer and HTML from the other.
+
+```ts
+agentside({ routes, accept: "q-value" });
+```
+
+## Prerendering route twins
+
+When your twins come from `routes` rather than HTML, `prerender(config, { outDir, paths?, siteUrl? })` writes each one to a static file instead. See the [API reference](/api-reference#agentsidebuild).

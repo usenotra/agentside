@@ -11,7 +11,7 @@ const converter = new NodeHtmlMarkdown({
   codeBlockStyle: "fenced",
   maxConsecutiveNewlines: 2,
   globalEscape: [/`/g, "\\`"],
-  lineStartEscape: [/^(\s*)((?:[-+>]\s)|(?:#{1,6}\s)|(?:\d+\.\s))/g, "$1\\$2"],
+  lineStartEscape: [/^(\s*)([-+>]\s|#{1,6}\s)/g, "$1\\$2"],
 });
 
 function text(element: HTMLElement): string {
@@ -74,17 +74,34 @@ export function htmlToMarkdown(html: string, options: HtmlToMarkdownOptions = {}
   const slots: string[] = [];
   for (const element of root.querySelectorAll("[data-ai-content]")) {
     slots.push(element.getAttribute("data-ai-content") ?? "");
-    element.replaceWith(`<p>agentsideslot${slots.length - 1}x</p>`);
+    element.removeAttribute("data-ai-content");
+    element.set_content(`agentsideslot${slots.length - 1}x`);
+  }
+
+  for (const code of root.querySelectorAll("td code, th code")) {
+    slots.push(`\`${code.textContent.replace(/\|/g, "\\|")}\``);
+    code.replaceWith(`agentsideslot${slots.length - 1}x`);
   }
 
   for (const pre of root.querySelectorAll("pre")) {
-    const lines = pre.querySelectorAll(".line, [data-line]");
+    const code0 = pre.querySelector("code") ?? pre;
+    const children = code0.childNodes.filter((child) => "tagName" in child);
+    const spanLines =
+      !code0.textContent.includes("\n") &&
+      children.length > 1 &&
+      (children as HTMLElement[]).every(
+        (child) => child.tagName === "DIV" || /(?:^|\s)(?:line|block)(?:\s|$)/.test(child.getAttribute("class") ?? "")
+      )
+        ? (children as HTMLElement[])
+        : [];
+    const marked = pre.querySelectorAll(".line, [data-line]");
+    const lines = marked.length > 1 ? marked : spanLines;
     const code = pre.querySelector("code");
     const language =
       pre.getAttribute("data-language") ??
       /(?:^|\s)language-([\w-]+)/.exec(`${code?.getAttribute("class") ?? ""} ${pre.getAttribute("class") ?? ""}`)?.[1] ??
       "";
-    if (lines.length < 2 && !pre.getAttribute("data-language")) continue;
+    if (lines.length < 2 && !pre.getAttribute("data-language") && !language) continue;
     const body = lines.length > 1 ? lines.map((line) => line.textContent).join("\n") : (code ?? pre).textContent;
     pre.replaceWith(`<pre><code class="language-${escapeHtml(language)}">${escapeHtml(body)}</code></pre>`);
   }
@@ -108,9 +125,11 @@ export function htmlToMarkdown(html: string, options: HtmlToMarkdownOptions = {}
     if (heading) {
       const title = text(heading);
       heading.remove();
-      const rest = blockTexts(card).join(" ");
+      const rest = blockTexts(card);
       const level = heading.tagName.toLowerCase();
-      card.replaceWith(`<${level}><a href="${href}">${escapeHtml(title)}</a></${level}>${rest ? `<p>${escapeHtml(rest)}</p>` : ""}`);
+      card.replaceWith(
+        `<${level}><a href="${href}">${escapeHtml(title)}</a></${level}>${rest.map((part) => `<p>${escapeHtml(part)}</p>`).join("")}`
+      );
     } else {
       const [title = "", ...rest] = blockTexts(card).length > 1 ? blockTexts(card) : card.childNodes.map((child) => child.textContent.trim()).filter(Boolean);
       card.replaceWith(`<p><a href="${href}">${escapeHtml(title)}</a>${rest.length ? `: ${escapeHtml(rest.join(" "))}` : ""}</p>`);

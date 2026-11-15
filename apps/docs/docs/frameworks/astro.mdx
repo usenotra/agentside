@@ -1,9 +1,20 @@
 ---
-title: Astro middleware
-description: Serve markdown twins from Astro middleware on on-demand rendered pages.
+title: Astro
+description: Serve markdown twins from Astro middleware on on-demand pages, or convert a static Astro build.
 ---
 
-Astro middleware receives the request as `context.request` and renders the page through `next()`.
+<Icon icon="/logos/astro-icon-light.svg" size={40} label="Astro" class="dark:hidden" />
+<Icon icon="/logos/astro-icon-dark.svg" size={40} label="Astro" class="hidden dark:block" />
+
+## Install
+
+```bash
+npm install @usenotra/agentside
+```
+
+## Mount the middleware
+
+Astro middleware in `src/middleware.ts` receives the request as `context.request` and renders the page through `next()`.
 
 ```ts src/middleware.ts
 import { defineMiddleware } from "astro:middleware";
@@ -26,8 +37,48 @@ export const twins = agentside({
 });
 ```
 
-## On-demand rendering
+`.md` URLs don't need their own pages. The middleware answers them before Astro looks for a route.
 
-Middleware only sees real requests on pages that render on demand. Prerendered pages run middleware once at build time, without the visitor's `Accept` or `User-Agent` headers, so negotiation cannot happen there. Use `output: "server"` with an adapter, or set `export const prerender = false` on the pages that should have twins.
+Middleware only sees real requests on pages that render on demand. Prerendered pages run middleware once at build time, without the visitor's `Accept` or `User-Agent` headers, so negotiation can't happen there. Use `output: "server"` with an adapter, or set `export const prerender = false` on the pages that should negotiate. For prerendered pages, use the static output below.
 
-`.md` URLs do not need their own pages. The middleware answers them before Astro looks for a route.
+## Static output
+
+With `output: "static"`, Astro writes plain HTML to `dist`. Convert it after `astro build`. You don't need the middleware or any markdown routes.
+
+```ts scripts/agentside.ts
+import { prerenderHtml, vercelRoutes } from "@usenotra/agentside/build";
+
+const pages = await prerenderHtml({
+  dir: "dist",
+  siteUrl: "https://acme.dev",
+  llms: { title: "Acme", description: "Acme sends invoices your customers actually pay." },
+});
+
+await Bun.write("vercel.json", JSON.stringify(vercelRoutes(pages.map((page) => page.path)), null, 2));
+```
+
+```json package.json
+{
+  "scripts": {
+    "build": "astro build && bun scripts/agentside.ts"
+  }
+}
+```
+
+This site is built that way: `astro build`, then `prerenderHtml` over `dist`.
+
+### Deploying with @astrojs/vercel
+
+Prerendered pages still go through the CDN when you deploy with the Vercel adapter, and pages with `prerender = false` keep running the middleware. The adapter writes the site to `.vercel/output` with its own routing, so a `vercel.json` isn't the place for the rules. Convert the static pages there and insert the routes into the Build Output API config instead.
+
+```ts scripts/agentside.ts
+import { applyVercelBuildOutput, prerenderHtml } from "@usenotra/agentside/build";
+
+const pages = await prerenderHtml({ dir: ".vercel/output/static", siteUrl: "https://acme.dev", llms: { title: "Acme" } });
+
+await applyVercelBuildOutput({ paths: pages.map((page) => page.path) });
+```
+
+Run it after `astro build`, the same way as above.
+
+See [Static sites](/static-sites) for the conversion rules, `llms.txt` and the CDN routes.

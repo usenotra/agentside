@@ -1,0 +1,88 @@
+---
+title: Nuxt
+description: Serve markdown twins from Nuxt server middleware, or convert a generated Nuxt site.
+---
+
+<Icon icon="/logos/nuxt.svg" size={40} label="Nuxt" />
+
+## Install
+
+```bash
+npm install @usenotra/agentside
+```
+
+## Add server middleware
+
+Nuxt runs every file in `server/middleware` before its routes. A middleware either returns a response, which ends the request, or returns nothing, which lets Nuxt render the page. There is no `next()` that returns the rendered page, so give `handle` a placeholder response and continue when it comes back.
+
+```ts server/middleware/agentside.ts
+import { twins } from "../utils/agentside";
+
+export default defineEventHandler(async (event) => {
+  const page = new Response(null);
+  const response = await twins.handle(toWebRequest(event), async () => page);
+  if (response !== page) return response;
+  setResponseHeaders(event, Object.fromEntries(response.headers));
+});
+```
+
+When Agentside answers with markdown, or with a 406 for an `Accept` header it can't satisfy, the middleware returns that `Response` and Nuxt sends it as is. Otherwise `handle` returns the placeholder with the `Link` and `Vary` headers it would have added to your page, the middleware copies them onto the event and Nuxt renders the page.
+
+```ts server/utils/agentside.ts
+import { agentside, remote } from "@usenotra/agentside";
+
+export const twins = agentside({
+  routes: {
+    "/": "# Acme\n\nAcme sends invoices your customers actually pay.",
+    "/blog/[slug]": remote(({ params }) => `https://cms.acme.dev/blog/${params.slug}.md`),
+  },
+  skip: ["/_nuxt", "/api", "/__nuxt_error"],
+});
+```
+
+`defineEventHandler`, `toWebRequest` and `setResponseHeaders` come from h3 and are auto-imported in the `server` directory. `.md` URLs don't need pages, the middleware answers them before routing.
+
+Routes that Nuxt prerenders are rendered once at build time without a visitor's headers, so the middleware can't negotiate them. Use the static output below for those.
+
+## Static output
+
+`nuxt generate` writes the prerendered site to `.output/public`. Convert it after the build.
+
+```ts scripts/agentside.ts
+import { prerenderHtml, vercelRoutes } from "@usenotra/agentside/build";
+
+const pages = await prerenderHtml({
+  dir: ".output/public",
+  siteUrl: "https://acme.dev",
+  exclude: ["/200"],
+  llms: { title: "Acme" },
+});
+
+await Bun.write("vercel.json", JSON.stringify(vercelRoutes(pages.map((page) => page.path)), null, 2));
+```
+
+```json package.json
+{
+  "scripts": {
+    "generate": "nuxt generate && bun scripts/agentside.ts"
+  }
+}
+```
+
+`/200` is the SPA fallback page Nuxt writes next to the real pages, so it is excluded.
+
+### Deploying with the vercel preset
+
+With the `vercel` Nitro preset, prerendered routes are served as static files and the middleware keeps handling the rest. The adapter writes the site to `.vercel/output` with its own routing, so a `vercel.json` isn't the place for the rules. Convert the static pages there and insert the routes into the Build Output API config instead.
+
+```ts scripts/agentside.ts
+import { applyVercelBuildOutput, prerenderHtml } from "@usenotra/agentside/build";
+
+const pages = await prerenderHtml({ dir: ".vercel/output/static", siteUrl: "https://acme.dev", exclude: ["/200"], llms: { title: "Acme" } });
+
+await applyVercelBuildOutput({ paths: pages.map((page) => page.path) });
+```
+
+Run it after `nuxt build`, the same way as above.
+
+See [Static sites](/static-sites) for the conversion rules and the CDN routes.

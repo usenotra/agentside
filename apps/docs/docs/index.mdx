@@ -7,7 +7,11 @@ sidebar:
 
 Agentside is a small SDK that answers AI agents with a markdown version of your pages. People keep getting your HTML from the same URL, while agents that ask for markdown or identify themselves by user agent get a clean twin that is cheaper to read and easier to cite.
 
-It is built on [Effect](https://effect.website) and only depends on the fetch-standard `Request` and `Response`, so one config runs in TanStack Start, Astro, Next.js, Hono, Cloudflare Workers, Bun and anything else that speaks fetch.
+It is built on [Effect](https://effect.website) and only depends on the fetch-standard `Request` and `Response`, so one config runs in Astro, SvelteKit, Nuxt, Next.js, TanStack Start, Hono, Cloudflare Workers, Bun and anything else that speaks fetch.
+
+## Two ways to get twins
+
+**Describe them as routes.** Map each page path to a string, a function or a remote URL and mount `handle` in front of your app. This fits pages that render on demand, content from a CMS and twins you want to [A/B test](/variants).
 
 ```ts
 import { agentside } from "@usenotra/agentside";
@@ -22,6 +26,17 @@ const twins = agentside({
 const response = await twins.handle(request, () => app.fetch(request));
 ```
 
+**Convert your built HTML.** If your pages are prerendered, run `prerenderHtml` after the build. It turns each page's `<main>` into markdown, writes `llms.txt` and `llms-full.txt`, and the CDN routes agents to the files. You don't write any markdown.
+
+```ts
+import { prerenderHtml, vercelRoutes } from "@usenotra/agentside/build";
+
+const pages = await prerenderHtml({ dir: "dist", siteUrl: "https://acme.dev", llms: { title: "Acme" } });
+await Bun.write("vercel.json", JSON.stringify(vercelRoutes(pages.map((page) => page.path)), null, 2));
+```
+
+Both serve the same URLs and headers, so you can convert static pages and keep routes for the dynamic ones.
+
 ## What you get
 
 - **Content negotiation** for `.md` URLs, `Accept: text/markdown` and known AI agent user agents, with a `Link` header on HTML pages that have a twin.
@@ -29,10 +44,17 @@ const response = await twins.handle(request, () => app.fetch(request));
 - **Error handling that protects agents** from broken twins. A failing variant falls back to control and a failing twin falls back to your HTML page.
 - **Caching** with a TTL, request deduplication and no caching of failures.
 - **Typed errors** and the raw Effect program through `@usenotra/agentside/effect`.
+- **Build-time conversion** of your HTML to markdown with `data-ai-*` attributes for control, plus `llms.txt`, `llms-full.txt` and CDN routes through `@usenotra/agentside/build`.
 
 <CardGroup cols={2}>
   <Card title="Quickstart" href="/quickstart" icon="rocket">
     Install Agentside and serve your first twin.
+  </Card>
+  <Card title="Static sites" href="/static-sites" icon="file-code">
+    Convert your built HTML to markdown and negotiate at the CDN.
+  </Card>
+  <Card title="Framework guides" href="/frameworks" icon="layers">
+    Astro, SvelteKit, Nuxt, Next.js, TanStack Start, Hono, Workers and Bun.
   </Card>
   <Card title="Migrating from Dualmark" href="/migrating-from-dualmark" icon="arrow-right-left">
     Map your Dualmark config to Agentside routes.
@@ -41,4 +63,4 @@ const response = await twins.handle(request, () => app.fetch(request));
 
 ## Benchmarks
 
-We are benchmarking Agentside against Dualmark on negotiation, cached reads and cold renders. The results and the harness will be published in the [benchmarks section of the README](https://github.com/usenotra/agentside#benchmarks).
+Agentside and Dualmark 0.11 run through the same harness. A cached markdown read takes about 2.7 µs against 41 µs, and agent detection about 50 ns against 500 ns. The full table and the harness are in the [benchmarks section of the README](https://github.com/usenotra/agentside#benchmarks).

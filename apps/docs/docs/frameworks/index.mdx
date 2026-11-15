@@ -1,6 +1,6 @@
 ---
 title: Framework guides
-description: Mount Agentside in any framework that hands you a fetch Request and lets you return a Response.
+description: Mount Agentside in any framework that hands you a fetch Request, or convert its static build output.
 ---
 
 Agentside needs two things from a framework: the incoming `Request` and a way to render the regular page as a `Response`. Every integration is a variation of the same line.
@@ -11,8 +11,37 @@ const response = await twins.handle(request, () => renderPage(request));
 
 Keep the `agentside()` call in its own module so the routes, cache and variants are created once per process.
 
-- [TanStack Start](/frameworks/tanstack-start)
-- [Astro middleware](/frameworks/astro)
-- [Next.js middleware](/frameworks/nextjs)
-- [Hono](/frameworks/hono)
-- [Cloudflare Workers and Bun.serve](/frameworks/workers-and-bun)
+Pages your framework prerenders never reach that line at request time. For those, run `prerenderHtml` over the build output and let the CDN route agents to the `.md` files, as each guide shows under "Static output" and [Static sites](/static-sites) explains in full.
+
+<CardGroup cols={3}>
+  <Tile title="Astro" description="src/middleware.ts or a static dist" href="/frameworks/astro">
+    <Icon icon="/logos/astro-icon-light.svg" size={40} class="dark:hidden" />
+    <Icon icon="/logos/astro-icon-dark.svg" size={40} class="hidden dark:block" />
+  </Tile>
+  <Tile title="SvelteKit" description="The handle hook in hooks.server.ts" href="/frameworks/sveltekit">
+    <Icon icon="/logos/svelte.svg" size={40} />
+  </Tile>
+  <Tile title="Nuxt" description="Nitro server middleware" href="/frameworks/nuxt">
+    <Icon icon="/logos/nuxt.svg" size={40} />
+  </Tile>
+  <Tile title="Next.js" description="proxy.ts, middleware.ts or a static export" href="/frameworks/nextjs">
+    <Icon icon="/logos/nextjs_icon_dark.svg" size={40} />
+  </Tile>
+  <Tile title="TanStack Start" description="A global request middleware" href="/frameworks/tanstack-start">
+    <Icon icon="/logos/tanstack_light.svg" size={40} class="dark:hidden" />
+    <Icon icon="/logos/tanstack_dark.svg" size={40} class="hidden dark:block" />
+  </Tile>
+  <Tile title="Hono" description="The first app.use middleware" href="/frameworks/hono">
+    <Icon icon="/logos/hono.svg" size={40} />
+  </Tile>
+  <Tile title="Cloudflare Workers" description="In front of the assets binding" href="/frameworks/workers-and-bun#cloudflare-workers">
+    <Icon icon="/logos/cloudflare-workers.svg" size={40} />
+  </Tile>
+  <Tile title="Bun" description="Around a Bun.serve fetch handler" href="/frameworks/workers-and-bun#bunserve">
+    <Icon icon="/logos/bun.svg" size={40} />
+  </Tile>
+  <Tile title="Vercel" description="CDN routes for static output" href="/static-sites#negotiating-at-the-cdn">
+    <Icon icon="/logos/vercel.svg" size={40} class="dark:hidden" />
+    <Icon icon="/logos/vercel_dark.svg" size={40} class="hidden dark:block" />
+  </Tile>
+</CardGroup>

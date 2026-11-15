@@ -2,5 +2,5 @@ import { defineMeta } from "blume";
 
 export default defineMeta({
   title: "Framework guides",
-  pages: ["index", "tanstack-start", "astro", "nextjs", "hono", "workers-and-bun"],
+  pages: ["index", "astro", "sveltekit", "nuxt", "nextjs", "tanstack-start", "hono", "workers-and-bun"],
 });

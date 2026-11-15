@@ -101,14 +101,15 @@ Mark up the HTML to control what agents read:
 | `data-ai-content="..."` | The element is replaced by the markdown in the attribute, useful for charts, widgets and images |
 | `<table>` | A GFM table |
 | `<dl>` | A list of `**term**: definition` pairs |
-| A link wrapping a heading and text (a card) | `[Heading](url): text` |
-| `<nav>` and `<footer>` outside `<main>`, scripts, styles, forms and buttons | Left out |
+| A link wrapping a heading and text (a card) | `### [Heading](url)` at the heading's own level, then the text |
+| `<pre>` code blocks, including Shiki output | A fenced block with its line breaks and language |
+| `<nav>` anywhere, `<footer>` outside `<main>`, decorative images without `alt`, scripts, styles, forms and buttons | Left out |
 
-Links and images become absolute when you pass `siteUrl`, and a page that fails to convert fails the build with every failing path listed. `htmlToMarkdown(html, options)` is exported too if you want to convert a single page.
+`llms.txt` groups pages into `##` sections by their first path segment, and `llms: { sections: { "/legal": "Legal" } }` overrides a section by path prefix. Pass `normalize: true` to replace typographic Unicode with ASCII. Links and images become absolute when you pass `siteUrl`, and a page that fails to convert fails the build with every failing path listed. `htmlToMarkdown(html, options)` is exported too if you want to convert a single page.
 
 ### Negotiating at the CDN
 
-Static pages on Vercel never reach a function, so negotiation has to happen in the routing layer. `vercelRoutes()` returns `rewrites` and `headers` for `vercel.json` that send `Accept: text/markdown` and known AI agents to the `.md` file:
+Static pages on Vercel never reach a function, so negotiation has to happen in the routing layer. `vercelRoutes()` returns a `routes` array for `vercel.json`. Vercel runs `routes` before the static file lookup, so they send `Accept: text/markdown` and known AI agents to the `.md` file even though the HTML page exists:
 
 ```ts
 import { vercelRoutes } from "@usenotra/agentside/build";
@@ -116,7 +117,11 @@ import { vercelRoutes } from "@usenotra/agentside/build";
 await Bun.write("vercel.json", JSON.stringify(vercelRoutes(), null, 2));
 ```
 
-Pass the list of paths (for example `pages.map((page) => page.path)` from `prerenderHtml`) to rewrite only pages that have a twin. CDN rules can't read q-values, so if part of your site also runs `handle`, set `accept: "contains"` there to make the same decision as the CDN.
+Markdown responses get `Content-Type: text/markdown`, `Vary: Accept, User-Agent` and `X-Robots-Tag: noindex`, and HTML pages get a `Link` header to their twin plus `Vary: Accept, User-Agent`, so the CDN cache never serves cached HTML to an agent. Pass the list of paths (for example `pages.map((page) => page.path)` from `prerenderHtml`) to rewrite only pages that have a twin. `routes` can't be combined with `rewrites`, `redirects`, `headers`, `cleanUrls` or `trailingSlash` in the same `vercel.json`.
+
+Framework adapters that write the Build Output API (`@astrojs/vercel`, SvelteKit's `adapter-vercel`, Nuxt's `vercel` preset) don't use `vercel.json` for this. Run `applyVercelBuildOutput({ paths })` after their build instead; it inserts the same routes into `.vercel/output/config.json` before `{ "handle": "filesystem" }`.
+
+`handle` serves markdown whenever `Accept` mentions `text/markdown` by default, the same rule as the CDN, so static and on-demand pages agree. Set `accept: "q-value"` for strict q-value negotiation when no CDN rules are involved.
 
 ## Repository
 
