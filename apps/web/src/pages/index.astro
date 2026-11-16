@@ -9,6 +9,8 @@ const NOTRA_URL = "https://usenotra.com";
 const BENCHMARKS_URL = `${GITHUB_URL}#benchmarks`;
 const RELEASE_URL = `${GITHUB_URL}#static-sites-convert-your-built-html`;
 const INSTALL_COMMAND = "npm install @usenotra/agentside";
+const SITE_URL = "https://agentside.usenotra.com";
+const OG_IMAGE_URL = `${SITE_URL}/og.jpg`;
 
 const title = "Agentside by Notra: markdown twins for AI agents";
 const description =
@@ -238,6 +240,14 @@ const year = new Date().getFullYear();
     <meta name="description" content={description} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={SITE_URL} />
+    <meta property="og:image" content={OG_IMAGE_URL} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Agentside. Serve AI agents a markdown version of every page." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content={OG_IMAGE_URL} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preload" href="/Satoshi-Variable.woff2" as="font" type="font/woff2" crossorigin />
   </head>
