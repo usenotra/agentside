@@ -188,13 +188,22 @@ Converts a single HTML document with the same rules as `prerenderHtml`, without 
 ```ts
 function llmsTxt(
   pages: readonly PrerenderedPage[],
-  options: { title: string; description?: string; siteUrl?: string; sections?: Record<string, string> }
+  options: {
+    title: string;
+    description?: string;
+    siteUrl?: string;
+    sections?: Record<string, string>;
+    order?: string[];
+    links?: Record<string, { title: string; url: string; description?: string }[]>;
+  }
 ): string;
 
-function llmsFullTxt(pages: readonly PrerenderedPage[]): string;
+function llmsFullTxt(pages: readonly PrerenderedPage[], options?: { siteUrl?: string }): string;
 ```
 
-`llmsTxt` lists each page as a link to its `.md` URL, prefixed with `siteUrl`, grouped into `##` sections. Top-level pages without children go under "Pages", other pages are grouped by their first path segment, and `sections` maps a path prefix to a section title that wins over the default. `llmsFullTxt` joins every page's markdown with `---`.
+`llmsTxt` lists each page as a link to its `.md` URL, prefixed with `siteUrl`, grouped into `##` sections. Page titles come from the page's `<h1>`, falling back to `<title>`, so site-name suffixes stay out of the list. Top-level pages without children go under "Pages", other pages are grouped by their first path segment, and `sections` maps a path prefix to a section title that wins over the default. Sections appear in the order you pass them, and `order` lists page paths in the order you want them (for example your navigation order), with unlisted pages after them. `links` adds sections of links that aren't pages, such as API docs, an OpenAPI spec or an MCP server. A section called "Optional" always comes last, as the llms.txt format expects.
+
+`llmsFullTxt` joins every page's markdown with `---` and starts each page with `Source: <url>`, so an agent can tell which page each part came from. `prerenderHtml` passes your `llms` options to both and uses `order` for `llms-full.txt` too.
 
 ### vercelRoutes
 

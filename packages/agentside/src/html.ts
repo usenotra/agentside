@@ -201,7 +201,13 @@ export function htmlToMarkdown(html: string, options: HtmlToMarkdownOptions = {}
 export function readMeta(html: string) {
   const document = parse(html, { comment: false });
   return {
-    title: text(document.querySelector("title") ?? document.querySelector("h1") ?? parse("")),
+    title: text(
+      document.querySelector("main h1") ??
+        document.querySelector("article h1") ??
+        document.querySelector("h1") ??
+        document.querySelector("title") ??
+        parse("")
+    ),
     description: document.querySelector('meta[name="description"]')?.getAttribute("content")?.trim() ?? "",
   };
 }
