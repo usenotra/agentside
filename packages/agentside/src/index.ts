@@ -14,6 +14,14 @@ export { estimateTokens, normalizeUnicode, toMarkdownPath } from "./text.js";
 export type * from "./types.js";
 
 const SERVABLE_METHODS = new Set(["GET", "HEAD"]);
+const ACCEPTS_HTML = /(^|,)\s*(\*\/\*|text\/html)/i;
+
+function requestHtml(request: Request) {
+  if (ACCEPTS_HTML.test(request.headers.get("accept") ?? "*/*")) return;
+  try {
+    request.headers.set("accept", "text/html");
+  } catch {}
+}
 
 export function remote(
   url: string | ((context: RenderContext) => string),
@@ -95,6 +103,7 @@ export function agentside(config: AgentsideConfig) {
       if (format === "markdown" || agent) {
         const response = await render(request, pathname, agent);
         if (response.ok) return response;
+        requestHtml(request);
         return setHeaders(await next(), { Vary: "Accept, User-Agent" });
       }
 
