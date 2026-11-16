@@ -33,16 +33,13 @@
         "@dualmark/core": "0.11.0",
         "@dualmark/nextjs": "0.11.0",
         "@usenotra/agentside": "workspace:*",
+        "agentside-0.3.5": "https://registry.npmjs.org/@usenotra/agentside/-/agentside-0.3.5.tgz",
         "mitata": "1.0.34",
       },
     },
     "packages/agentside": {
       "name": "@usenotra/agentside",
-      "version": "0.2.0",
-      "dependencies": {
-        "node-html-markdown": "2.0.0",
-        "node-html-parser": "6.1.13",
-      },
+      "version": "0.3.5",
       "devDependencies": {
         "@types/bun": "1.4.4",
         "effect": "4.1.2",
@@ -701,6 +698,8 @@
     "acorn-import-attributes": ["acorn-import-attributes@1.9.5", "", { "peerDependencies": { "acorn": "^8" } }, "sha512-n02Vykv5uA3eHGM/Z2dQrcD56kL8TyDb2p1+0P83PClMnC/nc+anbQRhIOWnSq4Ke/KvDPrY3C9hDtC/A3eHnQ=="],
 
     "agent-base": ["agent-base@7.1.4", "", {}, "sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ=="],
+
+    "agentside-0.3.5": ["@usenotra/agentside@https://registry.npmjs.org/@usenotra/agentside/-/agentside-0.3.5.tgz", { "dependencies": { "node-html-markdown": "2.0.0", "node-html-parser": "6.1.13" }, "peerDependencies": { "effect": "^4.1.0" } }, "sha512-NMtfq0bZRDdfHIxLR8FEfWerg0gXMvFefLFuTjLGHKg5t1bk8Ddz30wPOB3pbtcU5krHjqmy3TZ0+/seBXFbUQ=="],
 
     "ai": ["ai@7.0.165", "", { "dependencies": { "@ai-sdk/gateway": "4.0.138", "@ai-sdk/provider": "4.0.37", "@ai-sdk/provider-utils": "5.0.76" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-cEeORsLF+9+fNzvo4nQo9hxgQoEfupjc9Xmq6OM2NGUwQQQdkHxByBdFoqnNfBE0H+qwhGQaZejvbCFFD84tBA=="],
 

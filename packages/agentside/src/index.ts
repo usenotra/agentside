@@ -1,13 +1,14 @@
-import { Effect, Exit } from "effect";
+import { Effect } from "effect";
+import { FetchHttpClient } from "effect/http";
 
 import { detectAgent } from "./agents.js";
 import { make, markdownResponse } from "./core.js";
 import { negotiateFormat } from "./negotiate.js";
 import { toMarkdownPath, toPagePath } from "./text.js";
-import type { AgentsideConfig, RemoteSource, RenderContext } from "./types.js";
+import type { Agent, AgentsideConfig, RemoteSource, RenderContext } from "./types.js";
 
 export { detectAgent, KNOWN_AGENTS } from "./agents.js";
-export { NotFound, RemoteFailed, RenderFailed, SourceTimeout, type ServeError } from "./errors.js";
+export { InvalidConfig, NotFound, PrerenderFailed, RemoteFailed, RenderFailed, SourceTimeout, FileFailed, type ServeError } from "./errors.js";
 export { negotiateFormat } from "./negotiate.js";
 export { estimateTokens, normalizeUnicode, toMarkdownPath } from "./text.js";
 export type * from "./types.js";
@@ -48,40 +49,41 @@ function setHeaders(response: Response, headers: Record<string, string>) {
 }
 
 export function agentside(config: AgentsideConfig) {
-  const server = Effect.runSync(make(config));
+  const service = Effect.runSync(
+    make(config).pipe(
+      Effect.provide(FetchHttpClient.layer),
+      Effect.catchTag("InvalidConfig", (error) => Effect.die(new Error(`agentside: ${error.message}`)))
+    )
+  );
   const skip = config.skip ?? [];
 
   const isSkipped = (pathname: string) =>
     skip.some((prefix) => pathname === prefix || pathname.startsWith(prefix.endsWith("/") ? prefix : `${prefix}/`));
 
-  async function render(
-    request: Request,
-    pathname: string,
-    agent = detectAgent(request.headers.get("user-agent"))
-  ): Promise<Response> {
+  const respond = Effect.fnUntraced(function* (request: Request, pathname: string, agent: Agent | null) {
     const started = performance.now();
     const path = toPagePath(pathname);
-    const exit = await Effect.runPromiseExit(server.serve(path, request, agent));
+    return yield* service.serve(path, request, agent).pipe(
+      Effect.matchEffect({
+        onSuccess: ({ body, tokens, variant, cached }) =>
+          Effect.sync(() => {
+            config.onServe?.({ path, variant, agent, status: 200, cached, durationMs: performance.now() - started });
+            return markdownResponse(request.method === "HEAD" ? "" : body, config, 200, { "X-Agentside-Variant": variant }, tokens);
+          }),
+        onFailure: (error) =>
+          Effect.sync(() => {
+            if (error._tag === "NotFound") {
+              return markdownResponse(`# Not found\n\nNo markdown version of ${path} exists.\n`, config, 404);
+            }
+            config.onError?.(error, path);
+            return markdownResponse("# Temporarily unavailable\n\nTry again shortly.\n", config, 503, { "Retry-After": "30" });
+          }),
+      })
+    );
+  });
 
-    if (Exit.isSuccess(exit)) {
-      const { body, tokens, variant, cached } = exit.value;
-      config.onServe?.({ path, variant, agent, status: 200, cached, durationMs: performance.now() - started });
-      return markdownResponse(
-        request.method === "HEAD" ? "" : body,
-        config,
-        200,
-        { "X-Agentside-Variant": variant },
-        tokens
-      );
-    }
-
-    const error = exit.cause.reasons.find((reason) => reason._tag === "Fail")?.error;
-    if (error?._tag === "NotFound") {
-      return markdownResponse(`# Not found\n\nNo markdown version of ${path} exists.\n`, config, 404);
-    }
-    config.onError?.(error ?? exit.cause, path);
-    return markdownResponse("# Temporarily unavailable\n\nTry again shortly.\n", config, 503, { "Retry-After": "30" });
-  }
+  const render = (request: Request, pathname: string, agent = detectAgent(request.headers.get("user-agent"))) =>
+    Effect.runPromise(respond(request, pathname, agent));
 
   return {
     serve: (request: Request, pathname = new URL(request.url).pathname) => render(request, pathname),
@@ -113,7 +115,7 @@ export function agentside(config: AgentsideConfig) {
       }
 
       const response = await next();
-      if (config.linkHeader === false || !server.match(toPagePath(pathname))) {
+      if (config.linkHeader === false || !service.match(toPagePath(pathname))) {
         return setHeaders(response, { Vary: "Accept" });
       }
       return setHeaders(response, {

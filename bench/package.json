@@ -4,12 +4,14 @@
   "type": "module",
   "scripts": {
     "bench": "bun run index.ts",
-    "compare": "bun compare-site.ts"
+    "compare": "bun compare-site.ts",
+    "html": "bun html.ts"
   },
   "dependencies": {
     "@dualmark/core": "0.11.0",
     "@dualmark/nextjs": "0.11.0",
     "@usenotra/agentside": "workspace:*",
-    "mitata": "1.0.34"
+    "mitata": "1.0.34",
+    "agentside-0.3.5": "https://registry.npmjs.org/@usenotra/agentside/-/agentside-0.3.5.tgz"
   }
 }

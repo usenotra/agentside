@@ -22,3 +22,17 @@ export class SourceTimeout extends Schema.TaggedError<SourceTimeout>()("SourceTi
 }) {}
 
 export type ServeError = NotFound | RenderFailed | RemoteFailed | SourceTimeout;
+
+export class InvalidConfig extends Schema.TaggedError<InvalidConfig>()("InvalidConfig", {
+  message: Schema.String,
+}) {}
+
+export class FileFailed extends Schema.TaggedError<FileFailed>()("FileFailed", {
+  path: Schema.String,
+  operation: Schema.Literals(["read", "write", "list"]),
+  cause: Schema.Defect(),
+}) {}
+
+export class PrerenderFailed extends Schema.TaggedError<PrerenderFailed>()("PrerenderFailed", {
+  failures: Schema.Array(Schema.Struct({ path: Schema.String, reason: Schema.String })),
+}) {}

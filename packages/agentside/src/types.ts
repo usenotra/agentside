@@ -97,3 +97,14 @@ export interface PrerenderedPage {
   readonly description: string;
   readonly markdown: string;
 }
+
+export interface PrerenderOptions {
+  readonly outDir: string;
+  readonly paths?: readonly string[];
+  readonly siteUrl?: string;
+}
+
+export interface PrerenderResult {
+  readonly written: readonly string[];
+  readonly skipped: readonly string[];
+}
