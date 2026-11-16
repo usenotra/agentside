@@ -12,7 +12,7 @@ A markdown twin is a second copy of your content, so it should never make a page
 | What failed | Negotiated request | Explicit `.md` request |
 | --- | --- | --- |
 | A variant source | Control twin | Control twin |
-| No route matches | HTML page from `next()` | Markdown 404 |
+| No route matches | `next()`, request untouched | `next()` from `handle`, markdown 404 from `serve` |
 | The source returned `null` or the remote answered 404 | HTML page from `next()` | Markdown 404 |
 | The source threw, failed or timed out | HTML page from `next()` | Markdown 503 with `Retry-After: 30` |
 

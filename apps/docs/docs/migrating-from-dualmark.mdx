@@ -217,7 +217,7 @@ For a server-rendered app, build the file from your own page list with `llmsTxt(
 | An agent asks for a page whose render throws | The request throws | Your HTML page (200) |
 | An agent asks for a page without a twin | 404 | Your HTML page (200) |
 | A `.md` request whose render throws | The request throws | Markdown 503 with `Retry-After: 30` |
-| A `.md` request for a page without a twin | 404 | Markdown 404 |
+| A `.md` request for a page without a twin | 404 | Markdown 404 when a route matches, otherwise `next()` |
 | A known AI agent sends `Accept: text/html` | HTML | Markdown. The user agent is enough. |
 | Twins | Prerendered at build time | Rendered on request and cached for five minutes, or prerendered with `@usenotra/agentside/build` |
 

@@ -5,11 +5,11 @@ sidebar:
   order: 4
 ---
 
-`handle(request, next)` decides between your HTML page and the markdown twin from the URL, the `Accept` header and the `User-Agent` header. Only `GET` and `HEAD` requests are considered. Paths under a `skip` prefix, and paths that match no route (your API, assets), go straight to `next()` with the request untouched.
+`handle(request, next)` decides between your HTML page and the markdown twin from the URL, the `Accept` header and the `User-Agent` header. Only `GET` and `HEAD` requests are considered. Paths under a `skip` prefix, and paths that match no route (your API, assets, `.md` files your app serves itself), go straight to `next()` with the request untouched.
 
 ## Decision order
 
-1. **The path ends in `.md`.** The request is explicit, so Agentside serves the twin. A missing twin gets a markdown 404 and a failing twin gets a markdown 503.
+1. **The path ends in `.md` and matches a route.** The request is explicit, so Agentside serves the twin. A route that returns no twin gets a markdown 404 and a failing twin gets a markdown 503.
 2. **`Accept` mentions `text/markdown` or the user agent is a known AI agent.** Agentside serves the twin when it exists. When it is missing or fails, the request falls through to `next()` and the visitor gets your HTML page.
 3. **`Accept` rules out both HTML and markdown.** Agentside answers `406 Not Acceptable`. This only happens on paths that match a route.
 4. **Everything else** gets your HTML page from `next()`, with a `Link` header pointing at the twin.

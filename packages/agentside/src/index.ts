@@ -93,12 +93,12 @@ export function agentside(config: AgentsideConfig) {
       const { pathname } = new URL(request.url);
       if (isSkipped(pathname)) return next();
 
+      // Paths without a route (APIs, assets, the app's own .md files) pass through untouched.
+      if (!service.match(toPagePath(pathname))) return next();
+
       if (pathname.endsWith(".md")) {
         return render(request, pathname);
       }
-
-      // Only negotiate on paths with a route; everything else (APIs, assets) passes through untouched.
-      if (!service.match(toPagePath(pathname))) return next();
 
       const accept = request.headers.get("accept");
       const format = negotiateFormat(accept, config.accept ?? "contains");
