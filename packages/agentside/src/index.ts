@@ -97,6 +97,9 @@ export function agentside(config: AgentsideConfig) {
         return render(request, pathname);
       }
 
+      // Only negotiate on paths with a route; everything else (APIs, assets) passes through untouched.
+      if (!service.match(toPagePath(pathname))) return next();
+
       const accept = request.headers.get("accept");
       const format = negotiateFormat(accept, config.accept ?? "contains");
       const agent = detectAgent(request.headers.get("user-agent"));
@@ -115,7 +118,7 @@ export function agentside(config: AgentsideConfig) {
       }
 
       const response = await next();
-      if (config.linkHeader === false || !service.match(toPagePath(pathname))) {
+      if (config.linkHeader === false) {
         return setHeaders(response, { Vary: "Accept" });
       }
       return setHeaders(response, {
