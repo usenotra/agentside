@@ -155,8 +155,11 @@ export function vercelRoutes(paths?: readonly string[]) {
     ),
   ];
   const conditions = [
-    { type: "header", key: "accept", value: ".*text/markdown.*" },
-    { type: "header", key: "user-agent", value: `.*(${agentTokens.map(escapeRegex).join("|")}).*` },
+    {
+      has: [{ type: "header", key: "accept", value: ".*text/markdown.*" }],
+      missing: [{ type: "header", key: "accept", value: ".*text/markdown\\s*;[^,]*q\\s*=\\s*0(\\.0*)?\\s*([,;].*)?" }],
+    },
+    { has: [{ type: "header", key: "user-agent", value: `.*(${agentTokens.map(escapeRegex).join("|")}).*` }] },
   ] as const;
   const markdownHeaders = {
     "Content-Type": "text/markdown; charset=utf-8",
@@ -187,10 +190,10 @@ export function vercelRoutes(paths?: readonly string[]) {
       : []),
     ...conditions.flatMap((condition) => [
       ...(!paths || paths.includes("/")
-        ? [{ src: "^/$", has: [condition], dest: "/index.md", headers: markdownHeaders }]
+        ? [{ src: "^/$", ...condition, dest: "/index.md", headers: markdownHeaders }]
         : []),
       ...(!nested || nested.length > 0
-        ? [{ src: `^/${pagePattern}/?$`, has: [condition], dest: "/$1.md", headers: markdownHeaders }]
+        ? [{ src: `^/${pagePattern}/?$`, ...condition, dest: "/$1.md", headers: markdownHeaders }]
         : []),
     ]),
   ];

@@ -37,7 +37,7 @@ Agents get markdown when they ask for `/pricing.md`, send `Accept: text/markdown
 Agentside does what [Dualmark](https://github.com/dodopayments/dualmark) does, with these differences:
 
 - **Faster.** Agent detection is one precompiled regex, routes are a map lookup and rendered markdown is cached with concurrent requests deduped. See the benchmarks below.
-- **Failures don't break pages.** A twin that throws, times out or doesn't exist falls back to the HTML page for agents. An explicit `.md` request gets a 404 or a 503 with `Retry-After` rather than an unhandled exception.
+- **Failures don't break pages.** A twin that throws, times out or doesn't exist falls back to the HTML page for agents that accept HTML. An explicit `.md` request gets a 404 or a 503 with `Retry-After` rather than an unhandled exception.
 - **Remote sources.** `remote()` fetches markdown from a CMS or another deployment, with a timeout and retries on 5xx and network errors.
 - **Per-agent variants.** Show ChatGPT one version and Claude another, with automatic fallback to the original if the variant fails. Every response says which variant it served (`X-Agentside-Variant`) and `onServe` reports each exposure.
 - **Not tied to Next.js.** One fetch-standard handler for TanStack Start, Astro, Hono, Next.js middleware, Bun and Workers.

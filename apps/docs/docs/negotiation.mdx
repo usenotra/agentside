@@ -25,7 +25,7 @@ Set `linkHeader: false` to leave HTML responses without the `Link` header.
 
 ## The Accept header
 
-By default `handle` serves markdown whenever `Accept` contains `text/markdown`, whatever its q-value. That is the only rule a CDN can express, so `handle` and the routes from [`vercelRoutes`](/static-sites#negotiating-at-the-cdn) always agree on the same request.
+By default `handle` serves markdown whenever `Accept` contains `text/markdown`, whatever its q-value, unless that q-value is `0`. That is the only rule a CDN can express, so `handle` and the routes from [`vercelRoutes`](/static-sites#negotiating-at-the-cdn) always agree on the same request.
 
 Set `accept: "q-value"` to weigh q-values instead. Agentside then compares `text/markdown` against `text/html` and `application/xhtml+xml`, with `*/*` and `text/*` counting for whichever side has no specific entry. Markdown has to score strictly higher, so a tie goes to HTML.
 
@@ -41,6 +41,7 @@ agentside({ routes, accept: "q-value" });
 | `text/markdown, text/html;q=0.9` | Markdown | Markdown |
 | `text/html, text/markdown` | Markdown | HTML |
 | `text/html, text/markdown;q=0.5` | Markdown | HTML |
+| `text/html, text/markdown;q=0` | HTML | HTML |
 | `application/json` | 406 | 406 |
 
 The same logic is exported as `negotiateFormat(accept, mode)`, which returns `"markdown"`, `"html"` or `null`. Unlike `handle`, its `mode` defaults to `"q-value"`.
@@ -92,4 +93,4 @@ Every markdown response carries the same headers.
 
 `HEAD` requests get the same status and headers with an empty body.
 
-`noindex` defaults to on so search engines keep indexing your HTML page instead of its twin. HTML responses that fall through after a negotiated request get `Vary: Accept, User-Agent`, so shared caches never hand a twin to a browser or a page to an agent.
+`noindex` defaults to on so search engines keep indexing your HTML page instead of its twin. HTML responses that fall through after a negotiated request get `Vary: Accept, User-Agent`, so shared caches never hand a twin to a browser or a page to an agent. A request whose `Accept` rules out HTML, such as `Accept: text/markdown` alone, gets the markdown 404 or 503 instead of a page it cannot read.

@@ -22,7 +22,7 @@ function agentside(config: AgentsideConfig): {
 | --- | --- | --- | --- |
 | `routes` | `Record<string, Source>` | required | Page paths or patterns mapped to their twin's source. |
 | `variants` | `Record<string, Variant[]>` | `{}` | Variants per route pattern. See [A/B variants](/variants). |
-| `accept` | `"contains" \| "q-value"` | `"contains"` | `"contains"` serves markdown whenever `Accept` mentions `text/markdown`, matching CDN rules that can't parse q-values. `"q-value"` weighs q-values strictly. See [Content negotiation](/negotiation#the-accept-header). |
+| `accept` | `"contains" \| "q-value"` | `"contains"` | `"contains"` serves markdown whenever `Accept` mentions `text/markdown` without `q=0`, matching CDN rules that can't parse q-values. `"q-value"` weighs q-values strictly. See [Content negotiation](/negotiation#the-accept-header). |
 | `skip` | `string[]` | `[]` | Path prefixes that `handle` never touches. |
 | `cache` | `{ ttlMs?, capacity? } \| false` | `{ ttlMs: 300000, capacity: 1000 }` | In-memory cache settings. See [Caching](/caching). |
 | `timeoutMs` | `number` | `5000` | Timeout for each source load, including retries. |

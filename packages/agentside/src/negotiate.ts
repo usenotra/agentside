@@ -1,13 +1,19 @@
 import type { Format } from "./types.js";
 
 const HTML_TYPES = new Set(["text/html", "application/xhtml+xml"]);
+const MARKDOWN_REFUSED = /text\/markdown\s*;[^,]*\bq\s*=\s*0(?:\.0*)?\s*(?:[,;]|$)/i;
+const HTML_ACCEPTED = /text\/html|application\/xhtml\+xml|\*\/\*|text\/\*/i;
+
+export function acceptsHtml(accept: string | null | undefined): boolean {
+  return !accept || HTML_ACCEPTED.test(accept);
+}
 
 export function negotiateFormat(
   accept: string | null | undefined,
   mode: "q-value" | "contains" = "q-value"
 ): Format | null {
   if (!accept) return "html";
-  if (mode === "contains" && accept.includes("text/markdown")) return "markdown";
+  if (mode === "contains" && accept.includes("text/markdown") && !MARKDOWN_REFUSED.test(accept)) return "markdown";
   if (!accept.includes("markdown") && !accept.includes("q=")) {
     return accept.includes("html") || accept.includes("*/*") || accept.includes("text/*") ? "html" : null;
   }

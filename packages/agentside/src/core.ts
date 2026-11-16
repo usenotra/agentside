@@ -146,9 +146,13 @@ export const make = Effect.fnUntraced(function* (config: AgentsideConfig) {
       const result = route.regex.exec(path);
       if (!result) continue;
       const values: Record<string, string> = {};
-      route.keys.forEach((key, index) => {
-        values[key] = decodeURIComponent(result[index + 1] ?? "");
-      });
+      try {
+        route.keys.forEach((key, index) => {
+          values[key] = decodeURIComponent(result[index + 1] ?? "");
+        });
+      } catch {
+        return null;
+      }
       return { pattern: route.pattern, params: values, source: route.source };
     }
     return null;
