@@ -49,14 +49,21 @@ const NAMED = new Map(
     })
 );
 
-export function decodeEntities(value: string): string {
+const LEGACY = new Set(["amp", "lt", "gt", "quot", "nbsp", "copy", "reg", "AMP", "LT", "GT", "QUOT"]);
+
+export function decodeEntities(value: string, attribute = false): string {
   if (!value.includes("&")) return value;
-  return value.replace(/&(#x[0-9a-f]+|#\d+|[a-z][a-z0-9]*);?/gi, (match, entity: string) => {
+  return value.replace(/&(#x[0-9a-f]+|#\d+|[a-z][a-z0-9]*)(;?)/gi, (match, entity: string, semicolon: string, offset: number) => {
     if (entity[0] === "#") {
       const code = entity[1] === "x" || entity[1] === "X" ? Number.parseInt(entity.slice(2), 16) : Number.parseInt(entity.slice(1), 10);
       return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : match;
     }
-    return NAMED.get(entity) ?? match;
+    const decoded = NAMED.get(entity);
+    if (decoded === undefined) return match;
+    if (semicolon) return decoded;
+    const next = value[offset + match.length] ?? "";
+    if (!LEGACY.has(entity) || (attribute && /[=a-z0-9]/i.test(next))) return match;
+    return decoded;
   });
 }
 
@@ -155,11 +162,11 @@ export function parse(html: string): Element {
     position = end + 1;
     const nameEnd = body.search(/[\s/>]|$/);
     const tag = body.slice(0, nameEnd).toLowerCase();
-    const attrs: Record<string, string> = {};
+    const attrs: Record<string, string> = Object.create(null);
     const rest = body.slice(nameEnd);
     for (const match of rest.matchAll(ATTRIBUTE)) {
       const name = match[1]?.toLowerCase();
-      if (name && !(name in attrs)) attrs[name] = decodeEntities(match[2] ?? match[3] ?? match[4] ?? "");
+      if (name && !(name in attrs)) attrs[name] = decodeEntities(match[2] ?? match[3] ?? match[4] ?? "", true);
     }
 
     open(tag);

@@ -217,7 +217,7 @@ function codeBlock(element: Element) {
     /(?:^|\s)(?:language|lang)-([\w+#-]+)/.exec(`${code.attrs["class"] ?? ""} ${element.attrs["class"] ?? ""}`)?.[1] ??
     "";
   const raw = textContent(code);
-  const marked = findAll(element, (node) => hasClass(node, LINE_CLASS) || "data-line" in node.attrs);
+  const marked = findAll(element, (node) => hasClass(node, LINE_CLASS) || Object.hasOwn(node.attrs, "data-line"));
   const children = code.children.filter((child): child is Element => child.type === "element");
   const blockLines =
     children.length > 1 &&
@@ -352,7 +352,7 @@ function blocks(element: Element, context: Context): string[] {
 
 function shouldDrop(element: Element) {
   if (DROP.has(element.tag)) return true;
-  if ("data-ai-ignore" in element.attrs || "hidden" in element.attrs) return true;
+  if (Object.hasOwn(element.attrs, "data-ai-ignore") || Object.hasOwn(element.attrs, "hidden")) return true;
   if (element.attrs["aria-hidden"] === "true") return true;
   return element.tag === "img" && !(element.attrs["alt"] ?? "").trim();
 }
@@ -385,13 +385,34 @@ function matcher(selector: string): (element: Element) => boolean {
     }
     const expected = double ?? single ?? bare;
     const name = (attribute ?? "").toLowerCase();
-    return (element) => name in element.attrs && (expected === undefined || element.attrs[name] === expected);
+    return (element) => Object.hasOwn(element.attrs, name) && (expected === undefined || element.attrs[name] === expected);
   });
   return (element) => (!tag || element.tag === tag) && checks.every((check) => check(element));
 }
 
+function splitSelectorList(selector: string) {
+  const parts: string[] = [];
+  let current = "";
+  let quote = "";
+  let depth = 0;
+  for (const char of selector) {
+    if (quote) {
+      if (char === quote) quote = "";
+    } else if (char === '"' || char === "'") quote = char;
+    else if (char === "[") depth++;
+    else if (char === "]") depth--;
+    else if (char === "," && depth === 0) {
+      parts.push(current);
+      current = "";
+      continue;
+    }
+    current += char;
+  }
+  return [...parts, current];
+}
+
 function select(document: Element, selector: string | undefined) {
-  const alternatives = (selector ?? "main, article, body").split(",").map(matcher);
+  const alternatives = splitSelectorList(selector?.trim() ? selector : "main, article, body").map(matcher);
   for (const matches of alternatives) {
     const found = find(document, matches);
     if (found) return found;
