@@ -2,6 +2,7 @@ import { Effect } from "effect";
 import { FetchHttpClient } from "effect/http";
 
 import * as Programs from "./prerender.js";
+import { describeError } from "./prerender.js";
 import { PrerenderFailed } from "./errors.js";
 import type { AgentsideConfig, PrerenderedPage, PrerenderHtmlOptions, PrerenderOptions, PrerenderResult } from "./types.js";
 import * as Vercel from "./vercel.js";
@@ -11,15 +12,15 @@ export { llmsFullTxt, llmsTxt } from "./llms.js";
 export { vercelRoutes } from "./vercel.js";
 export type { PrerenderOptions, PrerenderResult } from "./types.js";
 
-function toError(error: { readonly _tag: string; readonly message?: string }) {
+function toError(error: { readonly _tag: string; readonly message?: string; readonly path?: string; readonly cause?: unknown }) {
   if (error instanceof PrerenderFailed) {
     const lines = error.failures.map((failure) => `${failure.path}: ${failure.reason}`);
     return new Error(`agentside: ${error.failures.length} page(s) failed\n${lines.join("\n")}`);
   }
-  return new Error(`agentside: ${error._tag}${error.message ? `: ${error.message}` : ""}`);
+  return new Error(`agentside: ${describeError(error)}`);
 }
 
-function run<A, E extends { readonly _tag: string; readonly message?: string }>(effect: Effect.Effect<A, E>): Promise<A> {
+function run<A, E extends { readonly _tag: string; readonly message?: string; readonly path?: string; readonly cause?: unknown }>(effect: Effect.Effect<A, E>): Promise<A> {
   return Effect.runPromise(effect.pipe(Effect.catch((error) => Effect.die(toError(error)))));
 }
 

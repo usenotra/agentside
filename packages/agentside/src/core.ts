@@ -108,7 +108,14 @@ export const make = Effect.fn("Agentside.make")(function* (config: AgentsideConf
   });
 
   const fetchRemote = Effect.fn("Agentside.fetchRemote")(function* (source: RemoteSource, context: RenderContext) {
-    const url = typeof source.url === "string" ? source.url : source.url(context);
+    const resolve = source.url;
+    const url =
+      typeof resolve === "string"
+        ? resolve
+        : yield* Effect.try({
+            try: () => resolve(context),
+            catch: (cause) => new RenderFailed({ path: context.path, cause }),
+          });
     const remoteFailed = (cause: unknown) => new RemoteFailed({ path: context.path, url, cause });
     const response = yield* http
       .get(url, { headers: { accept: "text/markdown, text/plain;q=0.9", ...source.headers } })

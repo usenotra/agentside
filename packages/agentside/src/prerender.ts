@@ -37,14 +37,16 @@ const listHtml = Effect.fn("Agentside.listHtml")(function* (dir: string) {
   return files.filter((file) => file.endsWith(".html") && !/(^|[\\/])(404|500)\.html$/.test(file));
 });
 
-function reason(error: { readonly _tag: string; readonly message?: string }) {
-  return error.message ? `${error._tag}: ${error.message}` : error._tag;
+export function describeError(error: { readonly _tag: string; readonly message?: string; readonly path?: string; readonly cause?: unknown }) {
+  const cause = error.cause instanceof Error ? error.cause.message : error.cause === undefined ? "" : String(error.cause);
+  const details = [error.message, error.path, cause].filter(Boolean).join(", ");
+  return details ? `${error._tag} (${details})` : error._tag;
 }
 
-function failOnErrors<A, E extends { readonly _tag: string; readonly message?: string }>(
+function failOnErrors<A, E extends { readonly _tag: string; readonly message?: string; readonly path?: string; readonly cause?: unknown }>(
   results: readonly { readonly path: string; readonly result: Result.Result<A, E> }[]
 ) {
-  const failures = results.flatMap(({ path, result }) => (Result.isFailure(result) ? [{ path, reason: reason(result.failure) }] : []));
+  const failures = results.flatMap(({ path, result }) => (Result.isFailure(result) ? [{ path, reason: describeError(result.failure) }] : []));
   return failures.length > 0 ? Effect.fail(new PrerenderFailed({ failures })) : Effect.void;
 }
 

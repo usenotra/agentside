@@ -36,6 +36,10 @@
     "./build": {
       "types": "./dist/build.d.ts",
       "default": "./dist/build.js"
+    },
+    "./effect/build": {
+      "types": "./dist/effect-build.d.ts",
+      "default": "./dist/effect-build.js"
     }
   },
   "scripts": {

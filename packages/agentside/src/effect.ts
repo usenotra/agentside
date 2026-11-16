@@ -9,5 +9,3 @@ export {
   FileFailed,
   type ServeError,
 } from "./errors.js";
-export { prerender, prerenderHtml } from "./prerender.js";
-export { applyVercelBuildOutput } from "./vercel.js";

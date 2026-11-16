@@ -8,8 +8,11 @@ sidebar:
 `agentside()` and the helpers in `@usenotra/agentside/build` are promise wrappers around Effect programs. If your app already runs on Effect, use those programs directly from `@usenotra/agentside/effect`: Agentside is a service you provide with a layer, every operation fails with typed errors, and remote sources go through Effect's `HttpClient`.
 
 ```ts
-import { Agentside, layer, layerFetch, prerender, prerenderHtml } from "@usenotra/agentside/effect";
+import { Agentside, layer, layerFetch } from "@usenotra/agentside/effect";
+import { prerender, prerenderHtml } from "@usenotra/agentside/effect/build";
 ```
+
+`@usenotra/agentside/effect` has no Node imports, so it runs on edge runtimes. The prerender programs read and write files, so they live in the Node-only `@usenotra/agentside/effect/build`.
 
 ## The Agentside service
 
@@ -50,7 +53,10 @@ const handle = Effect.fn("Site.markdown")(function* (request: Request) {
     Effect.catchTags({
       NotFound: () => Effect.succeed(new Response("No twin", { status: 404 })),
       RenderFailed: () => Effect.succeed(markdownResponse("# Unavailable\n", config, 503)),
-      RemoteFailed: (error) => Effect.succeed(markdownResponse(`# Upstream returned ${error.status}\n`, config, 502)),
+      RemoteFailed: (error) =>
+        Effect.succeed(
+          markdownResponse(error.status ? `# Upstream returned ${error.status}\n` : "# Upstream unavailable\n", config, 502)
+        ),
       SourceTimeout: () => Effect.succeed(markdownResponse("# Timed out\n", config, 504)),
     })
   );
@@ -65,18 +71,18 @@ Provide the layer once at the edge of your app, so every request shares one rout
 
 ## Remote sources
 
-Remote sources use `HttpClient` with `HttpClient.retryTransient`: transport errors, timeouts, `408`, `429` and `5xx` responses are retried up to `retries` times (default 2) on a jittered exponential schedule, and the whole load is capped by `timeoutMs`. A `404` means the page has no twin. Any other non-2xx status fails with `RemoteFailed` and its `status`.
+Remote sources use `HttpClient` with `HttpClient.retryTransient`: transport errors and `408`, `429`, `500`, `502`, `503` and `504` responses are retried up to `retries` times (default 2) on a jittered exponential schedule, and the whole load is capped by `timeoutMs`. A `404` means the page has no twin. Any other non-2xx status fails with `RemoteFailed` and its `status`.
 
 ## Prerendering
 
 `prerender(config, options)`, `prerenderHtml(options)` and `applyVercelBuildOutput(options)` are the Effect versions of the helpers in [`@usenotra/agentside/build`](/static-sites). They take the same options. Pages are processed with bounded concurrency, and every failing page is collected into one `PrerenderFailed` error with a `failures` array of `{ path, reason }`, so a broken build lists everything at once. File access fails with `FileFailed` (with the `path` and the `operation`: `read`, `write` or `list`), and a page that can't be converted fails with `RenderFailed`.
 
-`prerender` needs an `HttpClient` for remote sources; provide `FetchHttpClient.layer` from `effect/http` or your own. `applyVercelBuildOutput` decodes `.vercel/output/config.json` with Schema and fails with `InvalidConfig` if it isn't a valid Build Output config.
+`prerender` builds the full service, so it always needs an `HttpClient`, even when every route is local. Provide `FetchHttpClient.layer` from `effect/http` or your own. `applyVercelBuildOutput` decodes `.vercel/output/config.json` with Schema and fails with `InvalidConfig` if it isn't a valid Build Output config.
 
 ```ts
 import { Effect } from "effect";
 import { FetchHttpClient } from "effect/http";
-import { prerender, prerenderHtml } from "@usenotra/agentside/effect";
+import { prerender, prerenderHtml } from "@usenotra/agentside/effect/build";
 
 const build = Effect.gen(function* () {
   yield* prerender(config, { outDir: "dist", paths: ["/", "/pricing"] });
