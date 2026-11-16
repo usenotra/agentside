@@ -7,10 +7,21 @@ import { bench, do_not_optimize, group, run, summary } from "mitata";
 
 const BROWSER = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36";
 
+async function get(url: string, accept: string) {
+  const response = await fetch(url, { headers: { "user-agent": BROWSER, accept } });
+  if (!response.ok) throw new Error(`${url} answered ${response.status}`);
+  return response.text();
+}
+
 async function fromSitemap(origin: string) {
-  const sitemap = await (await fetch(`${origin}/sitemap.xml`)).text();
+  const sitemap = await get(`${origin}/sitemap.xml`, "application/xml");
   const urls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1] ?? "");
-  return Promise.all(urls.map(async (url) => ({ name: new URL(url).pathname, html: await (await fetch(url, { headers: { "user-agent": BROWSER, accept: "text/html" } })).text() })));
+  const pages: { name: string; html: string }[] = [];
+  for (let index = 0; index < urls.length; index += 4) {
+    const batch = urls.slice(index, index + 4);
+    pages.push(...(await Promise.all(batch.map(async (url) => ({ name: new URL(url).pathname, html: await get(url, "text/html") })))));
+  }
+  return pages;
 }
 
 async function fromDirectory(dir: string) {

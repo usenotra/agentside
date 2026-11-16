@@ -367,38 +367,49 @@ function prepare(element: Element) {
   }
 }
 
+const COMPOUND = /^([a-z][\w-]*)?((?:#[\w-]+|\.[\w-]+|\[[\w-]+(?:=(?:"[^"]*"|'[^']*'|[^\]]*))?\])*)$/i;
+const PART = /#([\w-]+)|\.([\w-]+)|\[([\w-]+)(?:=(?:"([^"]*)"|'([^']*)'|([^\]]*)))?\]/g;
+
+function matcher(selector: string): (element: Element) => boolean {
+  const compound = COMPOUND.exec(selector.trim());
+  if (!compound || !selector.trim()) {
+    throw new Error(`agentside: unsupported selector "${selector}". Use a tag, #id, .class or [attribute], optionally combined like main.content, or a comma-separated list of them.`);
+  }
+  const tag = compound[1]?.toLowerCase();
+  const checks = [...(compound[2] ?? "").matchAll(PART)].map((part): ((element: Element) => boolean) => {
+    const [, id, className, attribute, double, single, bare] = part;
+    if (id) return (element) => element.attrs["id"] === id;
+    if (className) {
+      const pattern = new RegExp(`(?:^|\\s)${className}(?:\\s|$)`);
+      return (element) => hasClass(element, pattern);
+    }
+    const expected = double ?? single ?? bare;
+    const name = (attribute ?? "").toLowerCase();
+    return (element) => name in element.attrs && (expected === undefined || element.attrs[name] === expected);
+  });
+  return (element) => (!tag || element.tag === tag) && checks.every((check) => check(element));
+}
+
 function select(document: Element, selector: string | undefined) {
-  if (!selector) {
-    return (
-      find(document, (node) => node.tag === "main") ??
-      find(document, (node) => node.tag === "article") ??
-      find(document, (node) => node.tag === "body")
-    );
+  const alternatives = (selector ?? "main, article, body").split(",").map(matcher);
+  for (const matches of alternatives) {
+    const found = find(document, matches);
+    if (found) return found;
   }
-  const value = selector.trim();
-  if (value.startsWith("#")) return find(document, (node) => node.attrs["id"] === value.slice(1));
-  if (value.startsWith(".")) {
-    const pattern = new RegExp(`(?:^|\\s)${value.slice(1).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:\\s|$)`);
-    return find(document, (node) => hasClass(node, pattern));
-  }
-  const attribute = /^\[([\w-]+)(?:=["']?([^"'\]]*)["']?)?\]$/.exec(value);
-  if (attribute) {
-    const [, name = "", expected] = attribute;
-    return find(document, (node) => name in node.attrs && (expected === undefined || node.attrs[name] === expected));
-  }
-  return find(document, (node) => node.tag === value.toLowerCase());
+  return undefined;
 }
 
 export function htmlToMarkdown(html: string, options: HtmlToMarkdownOptions = {}): string {
   const document = parse(html);
   const root = select(document, options.selector) ?? document;
+  const hasHeading = Boolean(find(root, (node) => node.tag === "h1"));
   prepare(root);
   let markdown = blocks(root, { siteUrl: options.siteUrl })
     .join("\n\n")
     .replace(/\)\[(?=[^\]]*\]\()/g, ") [")
     .replace(/(\S)\[ +(?=[^\]]*\]\()/g, "$1 [");
 
-  if (!find(root, (node) => node.tag === "h1")) {
+  if (!hasHeading) {
     const title = find(document, (node) => node.tag === "h1") ?? find(document, (node) => node.tag === "title");
     const text = title ? plain(title) : "";
     if (text) markdown = `# ${text}\n\n${markdown}`;

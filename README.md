@@ -72,9 +72,9 @@ Failure behaviour from the same script:
 
 | Corpus | 0.3.5 | Built-in | Speedup |
 | --- | --- | --- | --- |
-| This site, 21 pages (1.3 MB of HTML) | 23.1 ms | 9.4 ms | 2.5x |
-| aiinbx.com, 38 pages (4.5 MB of HTML) | 119.7 ms | 33.3 ms | 3.6x |
-| Largest aiinbx.com page (339 KB) | 12.9 ms | 2.6 ms | 4.9x |
+| This site, 21 pages (1.3 MB of HTML) | 23.8 ms | 8.1 ms | 2.9x |
+| aiinbx.com, 38 pages (4.5 MB of HTML) | 120.9 ms | 28.8 ms | 4.2x |
+| Largest aiinbx.com page (339 KB) | 12.8 ms | 2.3 ms | 5.6x |
 
 Installing the package also dropped from 12 extra packages and 2.6 MB to none.
 
