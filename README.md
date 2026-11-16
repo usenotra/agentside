@@ -66,6 +66,18 @@ Failure behaviour from the same script:
 | `.md` request whose render throws | throws | 503 markdown with `Retry-After` |
 | `.md` request whose remote source hangs | not supported | 503 after the timeout |
 
+### HTML to markdown
+
+`prerenderHtml` and `htmlToMarkdown` use a built-in HTML parser and markdown writer, so the package depends on nothing but `effect`. `bun run --cwd bench html [dir or site]` compares it with 0.3.5, which used `node-html-parser` and `node-html-markdown`:
+
+| Corpus | 0.3.5 | Built-in | Speedup |
+| --- | --- | --- | --- |
+| This site, 21 pages (1.3 MB of HTML) | 23.1 ms | 9.4 ms | 2.5x |
+| aiinbx.com, 38 pages (4.5 MB of HTML) | 119.7 ms | 33.3 ms | 3.6x |
+| Largest aiinbx.com page (339 KB) | 12.9 ms | 2.6 ms | 4.9x |
+
+Installing the package also dropped from 12 extra packages and 2.6 MB to none.
+
 ## Prerendering
 
 `@usenotra/agentside/build` writes every twin to a static file at build time, so a CDN can serve `/pricing.md` without running any code. A twin that throws fails the build and lists every failing path; a twin that returns `null` is skipped.

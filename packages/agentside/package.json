@@ -1,6 +1,6 @@
 {
   "name": "@usenotra/agentside",
-  "version": "0.3.5",
+  "version": "0.4.0",
   "description": "Serve markdown to AI agents and A/B test what they read. Built on Effect. By Notra.",
   "keywords": [
     "ai",
@@ -53,9 +53,5 @@
   "publishConfig": {
     "access": "public",
     "provenance": true
-  },
-  "dependencies": {
-    "node-html-markdown": "2.0.0",
-    "node-html-parser": "6.1.13"
   }
 }
