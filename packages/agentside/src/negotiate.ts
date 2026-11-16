@@ -2,11 +2,6 @@ import type { Format } from "./types.js";
 
 const HTML_TYPES = new Set(["text/html", "application/xhtml+xml"]);
 const MARKDOWN_REFUSED = /text\/markdown\s*;[^,]*\bq\s*=\s*0(?:\.0*)?\s*(?:[,;]|$)/i;
-const HTML_ACCEPTED = /text\/html|application\/xhtml\+xml|\*\/\*|text\/\*/i;
-
-export function acceptsHtml(accept: string | null | undefined): boolean {
-  return !accept || HTML_ACCEPTED.test(accept);
-}
 
 export function negotiateFormat(
   accept: string | null | undefined,

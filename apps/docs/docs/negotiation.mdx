@@ -93,4 +93,4 @@ Every markdown response carries the same headers.
 
 `HEAD` requests get the same status and headers with an empty body.
 
-`noindex` defaults to on so search engines keep indexing your HTML page instead of its twin. HTML responses that fall through after a negotiated request get `Vary: Accept, User-Agent`, so shared caches never hand a twin to a browser or a page to an agent. A request whose `Accept` rules out HTML, such as `Accept: text/markdown` alone, gets the markdown 404 or 503 instead of a page it cannot read.
+`noindex` defaults to on so search engines keep indexing your HTML page instead of its twin. HTML responses that fall through after a negotiated request get `Vary: Accept, User-Agent`, so shared caches never hand a twin to a browser or a page to an agent. When a negotiated request has no twin, or the twin fails, it always falls back to the HTML page, even if `Accept` lists only `text/markdown`, so an agent never ends up with an error for a page that exists. Only explicit `.md` URLs answer with a markdown 404 or 503.

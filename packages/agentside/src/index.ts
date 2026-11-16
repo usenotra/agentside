@@ -2,7 +2,7 @@ import { Effect, Exit } from "effect";
 
 import { detectAgent } from "./agents.js";
 import { make, markdownResponse } from "./core.js";
-import { acceptsHtml, negotiateFormat } from "./negotiate.js";
+import { negotiateFormat } from "./negotiate.js";
 import { toMarkdownPath, toPagePath } from "./text.js";
 import type { AgentsideConfig, RemoteSource, RenderContext } from "./types.js";
 
@@ -92,7 +92,7 @@ export function agentside(config: AgentsideConfig) {
       const agent = detectAgent(request.headers.get("user-agent"));
       if (format === "markdown" || agent) {
         const response = await render(request, pathname, agent);
-        if (response.ok || !acceptsHtml(accept)) return response;
+        if (response.ok) return response;
         return setHeaders(await next(), { Vary: "Accept, User-Agent" });
       }
 
