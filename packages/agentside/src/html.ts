@@ -24,11 +24,15 @@ function isAriaTable(element: Element) {
 function isCard(element: Element) {
   if (element.tag !== "a" || !textContent(element).trim()) return false;
   let spans = 0;
+  let flowing = false;
   for (const child of findAll(element, () => true)) {
     if (CARD_BLOCKS.has(child.tag)) return true;
-    if (child.tag === "span") spans++;
+    if (child.tag !== "span") continue;
+    spans++;
+    // A span opening or closing on a word gap (`<span> on X</span>`) continues the sentence: inline, not a card part.
+    if (/^ \S|\S $/.test(textContent(child))) flowing = true;
   }
-  return spans >= 2;
+  return spans >= 2 && !flowing;
 }
 
 const containsBlock = new WeakMap<Element, boolean>();

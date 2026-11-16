@@ -83,7 +83,12 @@ export function parse(html: string): Element {
     parent.children.push(node);
   };
   const text = (value: string) => {
-    if (value) append({ type: "text", text: decodeEntities(value), parent: null });
+    if (!value) return;
+    const decoded = decodeEntities(value);
+    // Comments (e.g. React's `<!-- -->` between interpolations) split one run of text into several nodes.
+    const last = current().children.at(-1);
+    if (last?.type === "text") last.text += decoded;
+    else append({ type: "text", text: decoded, parent: null });
   };
   const lastIndex = (tag: string) => {
     for (let index = stack.length - 1; index > 0; index--) if (stack[index]?.tag === tag) return index;
