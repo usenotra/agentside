@@ -53,9 +53,9 @@ Agentside does what [Dualmark](https://github.com/dodopayments/dualmark) does, w
 | Agent detection, AI bot user agent | 485 ns | 54 ns | 9.0x |
 | Accept negotiation, browser header | 464 ns | 244 ns | 1.9x |
 | Unicode normalisation, 5 KB of markdown | 23.4 µs | 7.1 µs | 3.3x |
-| Browser request that gets HTML | 2.26 µs | 1.47 µs | 1.5x |
-| Agent request, route 200 of 200 | 41.2 µs | 2.67 µs (15.4 µs without cache) | 15.4x |
-| `.md` request on a parameterised route | 37.9 µs | 2.30 µs (15.5 µs without cache) | 16.5x |
+| Browser request that gets HTML | 2.03 µs | 1.40 µs | 1.5x |
+| Agent request, route 200 of 200 | 38.1 µs | 2.76 µs (16.2 µs without cache) | 13.8x |
+| `.md` request on a parameterised route | 38.9 µs | 2.44 µs (16.0 µs without cache) | 15.9x |
 
 Failure behaviour from the same script:
 
@@ -75,6 +75,8 @@ Failure behaviour from the same script:
 | This site, 21 pages (1.3 MB of HTML) | 23.8 ms | 8.1 ms | 2.9x |
 | aiinbx.com, 38 pages (4.5 MB of HTML) | 120.9 ms | 28.8 ms | 4.2x |
 | Largest aiinbx.com page (339 KB) | 12.8 ms | 2.3 ms | 5.6x |
+| usenotra.com, 143 pages (24.6 MB of HTML) | 299.8 ms | 89.1 ms | 3.4x |
+| Largest usenotra.com page (1.1 MB) | 11.0 ms | 2.5 ms | 4.4x |
 
 Installing the package also dropped from 12 extra packages and 2.6 MB to none.
 

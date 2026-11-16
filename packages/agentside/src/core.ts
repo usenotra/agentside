@@ -1,8 +1,9 @@
-import { Cache, Effect, Equal, Exit, Hash, Schedule } from "effect";
+import { Cache, Context, Effect, Equal, Exit, Hash, Layer, Schedule } from "effect";
+import { FetchHttpClient, HttpClient } from "effect/http";
 
-import { NotFound, RemoteFailed, RenderFailed, SourceTimeout, type ServeError } from "./errors.js";
+import { InvalidConfig, NotFound, RemoteFailed, RenderFailed, SourceTimeout, type ServeError } from "./errors.js";
 import { estimateTokens, normalizeUnicode } from "./text.js";
-import type { Agent, AgentsideConfig, RenderContext, Source, Variant } from "./types.js";
+import type { Agent, AgentsideConfig, LocalSource, RemoteSource, RenderContext, Source, Variant } from "./types.js";
 
 export const CONTROL = "control";
 
@@ -64,70 +65,88 @@ function matchesAgent(variant: Variant, agent: Agent | null) {
   );
 }
 
-const loadSource = (source: Source, context: RenderContext, timeoutMs: number, retries: number) => {
-  const { path } = context;
-  if (typeof source === "string") return Effect.succeed<string | null>(source);
+interface Rendered {
+  readonly body: string;
+  readonly tokens: number;
+  readonly renderedAt: number;
+}
 
-  const load: Effect.Effect<string | null | undefined, ServeError> =
-    typeof source === "function"
-      ? Effect.tryPromise({
-          try: async () => source(context),
-          catch: (cause) => new RenderFailed({ path, cause }),
-        })
-      : Effect.gen(function* () {
-          const url = typeof source.url === "string" ? source.url : source.url(context);
-          const response = yield* Effect.tryPromise({
-            try: (signal) => fetch(url, { headers: { accept: "text/markdown, text/plain;q=0.9", ...source.headers }, signal }),
-            catch: (cause) => new RemoteFailed({ path, url, cause }),
-          });
-          if (response.status === 404) return null;
-          if (!response.ok) return yield* new RemoteFailed({ path, url, status: response.status });
-          return yield* Effect.tryPromise({
-            try: () => response.text(),
-            catch: (cause) => new RemoteFailed({ path, url, cause }),
-          });
-        }).pipe(
-          Effect.retry({
-            times: retries,
-            schedule: Schedule.exponential("100 millis"),
-            while: (error) => error._tag === "RemoteFailed" && (error.status === undefined || error.status >= 500),
-          })
-        );
+export interface Interface {
+  readonly match: (path: string) => Match | null;
+  readonly serve: (path: string, request: Request, agent: Agent | null) => Effect.Effect<Served, ServeError>;
+}
 
-  return load.pipe(
-    Effect.map((body) => body ?? null),
-    Effect.timeoutOrElse({ duration: timeoutMs, orElse: () => Effect.fail(new SourceTimeout({ path, timeoutMs })) })
-  );
-};
+export class Agentside extends Context.Service<Agentside, Interface>()("@usenotra/agentside/Agentside") {}
 
-export const make = Effect.fnUntraced(function* (config: AgentsideConfig) {
+const compileRoutes = Effect.fn("Agentside.compileRoutes")(function* (routes: AgentsideConfig["routes"]) {
   const exact = new Map<string, Source>();
   const params: ParamRoute[] = [];
-  for (const [pattern, source] of Object.entries(config.routes)) {
-    if (!pattern.startsWith("/")) throw new Error(`agentside: route "${pattern}" must start with "/"`);
+  for (const [pattern, source] of Object.entries(routes)) {
+    if (!pattern.startsWith("/")) return yield* new InvalidConfig({ message: `route "${pattern}" must start with "/"` });
     if (pattern.includes("[")) params.push(compileParamRoute(pattern, source));
     else exact.set(pattern.length > 1 ? pattern.replace(/\/+$/, "") : pattern, source);
   }
+  return { exact, params };
+});
 
+export const make = Effect.fn("Agentside.make")(function* (config: AgentsideConfig) {
+  const { exact, params } = yield* compileRoutes(config.routes);
   const timeoutMs = config.timeoutMs ?? 5000;
-  const retries = config.retries ?? 2;
   const variants = config.variants ?? {};
+  const http = (yield* HttpClient.HttpClient).pipe(
+    HttpClient.retryTransient({
+      times: config.retries ?? 2,
+      schedule: Schedule.exponential("100 millis").pipe(Schedule.jittered),
+    })
+  );
 
-  const render = (key: Key) =>
-    loadSource(key.source, key.context, timeoutMs, retries).pipe(
-      Effect.flatMap((body) => (body === null ? Effect.fail(new NotFound({ path: key.path })) : Effect.succeed(body))),
-      Effect.map((raw) => {
-        const body = config.normalize === false ? raw : normalizeUnicode(raw);
-        return { body, tokens: estimateTokens(body), renderedAt: performance.now() };
+  const renderLocal = Effect.fnUntraced(function* (source: LocalSource, context: RenderContext) {
+    return yield* Effect.tryPromise({
+      try: async () => source(context),
+      catch: (cause) => new RenderFailed({ path: context.path, cause }),
+    });
+  });
+
+  const fetchRemote = Effect.fn("Agentside.fetchRemote")(function* (source: RemoteSource, context: RenderContext) {
+    const url = typeof source.url === "string" ? source.url : source.url(context);
+    const remoteFailed = (cause: unknown) => new RemoteFailed({ path: context.path, url, cause });
+    const response = yield* http
+      .get(url, { headers: { accept: "text/markdown, text/plain;q=0.9", ...source.headers } })
+      .pipe(Effect.mapError(remoteFailed));
+    if (response.status === 404) return null;
+    if (response.status < 200 || response.status >= 300) {
+      return yield* new RemoteFailed({ path: context.path, url, status: response.status });
+    }
+    return yield* response.text.pipe(Effect.mapError(remoteFailed));
+  });
+
+  const loadSource = Effect.fnUntraced(
+    function* (source: Source, context: RenderContext) {
+      if (typeof source === "string") return source;
+      const body = typeof source === "function" ? yield* renderLocal(source, context) : yield* fetchRemote(source, context);
+      return body ?? null;
+    },
+    (effect, _source, context) =>
+      Effect.timeoutOrElse(effect, {
+        duration: timeoutMs,
+        orElse: () => Effect.fail(new SourceTimeout({ path: context.path, timeoutMs })),
       })
-    );
+  );
 
+  const render = Effect.fnUntraced(function* (key: Key) {
+    const raw = yield* loadSource(key.source, key.context);
+    if (raw === null) return yield* new NotFound({ path: key.path });
+    const body = config.normalize === false ? raw : normalizeUnicode(raw);
+    return { body, tokens: estimateTokens(body), renderedAt: performance.now() } satisfies Rendered;
+  });
+
+  const ttl = config.cache === false ? 0 : (config.cache?.ttlMs ?? 300_000);
   const cache =
     config.cache === false
       ? null
       : yield* Cache.makeWith(render, {
           capacity: config.cache?.capacity ?? 1000,
-          timeToLive: (exit) => (Exit.isSuccess(exit) ? (config.cache ? (config.cache.ttlMs ?? 300_000) : 300_000) : 0),
+          timeToLive: (exit) => (Exit.isSuccess(exit) ? ttl : 0),
         });
 
   const load = (key: Key) => {
@@ -158,29 +177,28 @@ export const make = Effect.fnUntraced(function* (config: AgentsideConfig) {
     return null;
   };
 
-  const serve = (path: string, request: Request, agent: Agent | null) =>
-    Effect.gen(function* () {
-      const found = match(path);
-      if (!found) return yield* new NotFound({ path });
-      const context: RenderContext = { path, params: found.params, request, agent };
-      const variant = variants[found.pattern]?.find((candidate) => matchesAgent(candidate, agent));
+  const serve = Effect.fnUntraced(function* (path: string, request: Request, agent: Agent | null) {
+    const found = match(path);
+    if (!found) return yield* new NotFound({ path });
+    const context: RenderContext = { path, params: found.params, request, agent };
+    const variant = variants[found.pattern]?.find((candidate) => matchesAgent(candidate, agent));
+    const control = load(new Key(path, CONTROL, found.source, context)).pipe(
+      Effect.map((result): Served => ({ ...result, variant: CONTROL }))
+    );
+    if (!variant) return yield* control;
 
-      const control = load(new Key(path, CONTROL, found.source, context)).pipe(
-        Effect.map((result): Served => ({ ...result, variant: CONTROL }))
-      );
-      if (!variant) return yield* control;
+    return yield* load(new Key(path, variant.id, variant.source, context)).pipe(
+      Effect.map((result): Served => ({ ...result, variant: variant.id })),
+      Effect.catch((error) => Effect.andThen(Effect.sync(() => config.onError?.(error, path)), control))
+    );
+  });
 
-      return yield* load(new Key(path, variant.id, variant.source, context)).pipe(
-        Effect.map((result): Served => ({ ...result, variant: variant.id })),
-        Effect.catch((error) => {
-          config.onError?.(error, path);
-          return control;
-        })
-      );
-    });
-
-  return { match, serve };
+  return Agentside.of({ match, serve });
 });
+
+export const layer = (config: AgentsideConfig) => Layer.effect(Agentside, make(config));
+
+export const layerFetch = (config: AgentsideConfig) => layer(config).pipe(Layer.provide(FetchHttpClient.layer));
 
 export function markdownResponse(
   body: string,
