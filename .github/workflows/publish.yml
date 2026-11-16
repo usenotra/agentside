@@ -60,7 +60,10 @@ jobs:
       - name: Pack
         if: steps.version.outputs.publish == 'true'
         working-directory: packages/agentside
-        run: bun pm pack --filename "$RUNNER_TEMP/agentside.tgz"
+        run: |
+          rm README.md
+          cp ../../README.md README.md
+          bun pm pack --filename "$RUNNER_TEMP/agentside.tgz"
 
       - name: Upload tarball
         if: steps.version.outputs.publish == 'true'

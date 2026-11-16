@@ -1,4 +1,4 @@
-<p align="center"><img src="./logo-dark.svg" width="72" alt="Notra" /></p>
+<p align="center"><img src="https://raw.githubusercontent.com/usenotra/agentside/main/logo-dark.svg" width="72" alt="Notra" /></p>
 
 # Agentside by Notra
 
