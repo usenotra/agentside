@@ -41,6 +41,41 @@ function blockTexts(element: HTMLElement): string[] {
   return out.map((part) => part.replace(/\s+/g, " ").trim()).filter(Boolean);
 }
 
+function spacedText(element: HTMLElement): string {
+  return element.childNodes
+    .map((child) => ("tagName" in child ? spacedText(child as HTMLElement) : child.textContent))
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function cardParts(card: HTMLElement) {
+  return card.childNodes.map((child) => ("tagName" in child ? spacedText(child as HTMLElement) : child.textContent.trim())).filter(Boolean);
+}
+
+function pickTitle(card: HTMLElement, parts: readonly string[]) {
+  const children = card.childNodes.filter((child) => "tagName" in child || child.textContent.trim()) as HTMLElement[];
+  if (children.length !== parts.length) return 0;
+  const byClass = children.findIndex((child) => /title|heading|name/i.test(child.getAttribute?.("class") ?? ""));
+  if (byClass !== -1) return byClass;
+  const timeIndex = children.findIndex((child) => child.tagName === "TIME" || Boolean(child.querySelector?.("time")));
+  return timeIndex === 0 && parts.length > 1 ? 1 : 0;
+}
+
+function ariaTable(table: HTMLElement) {
+  const rows = table.querySelectorAll('[role="row"]').map((row) =>
+    row.querySelectorAll('[role="cell"], [role="gridcell"], [role="rowheader"], [role="columnheader"]').map((cell) => ({
+      header: cell.getAttribute("role") === "columnheader",
+      html: escapeHtml(text(cell)),
+    }))
+  );
+  if (rows.length === 0) return null;
+  const headerIndex = rows.findIndex((cells) => cells.length > 0 && cells.every((cell) => cell.header));
+  const [head, ...body] = headerIndex === -1 ? rows : [rows[headerIndex] ?? [], ...rows.filter((_, index) => index !== headerIndex)];
+  const row = (cells: { html: string }[], tag: string) => `<tr>${cells.map((cell) => `<${tag}>${cell.html}</${tag}>`).join("")}</tr>`;
+  return `<table><thead>${row(head ?? [], "th")}</thead><tbody>${body.map((cells) => row(cells, "td")).join("")}</tbody></table>`;
+}
+
 function tightenTables(markdown: string) {
   let fenced = false;
   return markdown
@@ -76,6 +111,11 @@ export function htmlToMarkdown(html: string, options: HtmlToMarkdownOptions = {}
     slots.push(element.getAttribute("data-ai-content") ?? "");
     element.removeAttribute("data-ai-content");
     element.set_content(`agentsideslot${slots.length - 1}x`);
+  }
+
+  for (const table of root.querySelectorAll('[role="table"], [role="grid"]')) {
+    const html = ariaTable(table);
+    if (html) table.replaceWith(html);
   }
 
   for (const code of root.querySelectorAll("td code, th code")) {
@@ -131,7 +171,10 @@ export function htmlToMarkdown(html: string, options: HtmlToMarkdownOptions = {}
         `<${level}><a href="${href}">${escapeHtml(title)}</a></${level}>${rest.map((part) => `<p>${escapeHtml(part)}</p>`).join("")}`
       );
     } else {
-      const [title = "", ...rest] = blockTexts(card).length > 1 ? blockTexts(card) : card.childNodes.map((child) => child.textContent.trim()).filter(Boolean);
+      const parts = blockTexts(card).length > 1 ? blockTexts(card) : cardParts(card);
+      const titleIndex = pickTitle(card, parts);
+      const title = parts[titleIndex] ?? "";
+      const rest = parts.filter((_, index) => index !== titleIndex);
       card.replaceWith(`<p><a href="${href}">${escapeHtml(title)}</a>${rest.length ? `: ${escapeHtml(rest.join(" "))}` : ""}</p>`);
     }
   }
@@ -144,6 +187,7 @@ export function htmlToMarkdown(html: string, options: HtmlToMarkdownOptions = {}
   let markdown = tightenTables(converter.translate(root.innerHTML));
   markdown = markdown
     .replace(/\)\[(?=[^\]]*\]\()/g, ") [")
+    .replace(/(\S)\[ +(?=[^\]]*\]\()/g, "$1 [")
     .replace(/agentsideslot(\d+)x/g, (_, index: string) => slots[Number(index)] ?? "");
 
   if (!root.querySelector("h1")) {

@@ -2,7 +2,10 @@
   "name": "@agentside/bench",
   "private": true,
   "type": "module",
-  "scripts": { "bench": "bun run index.ts" },
+  "scripts": {
+    "bench": "bun run index.ts",
+    "compare": "bun compare-site.ts"
+  },
   "dependencies": {
     "@dualmark/core": "0.11.0",
     "@dualmark/nextjs": "0.11.0",
