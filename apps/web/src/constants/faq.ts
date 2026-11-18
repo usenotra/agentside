@@ -9,7 +9,7 @@ export const FAQ_ITEMS: readonly FaqItem[] = [
   {
     question: "Do I have to write the markdown by hand?",
     answer:
-      "You can skip that step on a static site, because prerenderHtml reads every built .html file, converts the main element to markdown and writes the result next to the page. The same call writes llms.txt and llms-full.txt for the whole site.",
+      "You can skip that step on a static site, because prerenderHtml reads every built .html file, converts the main element to markdown and writes the result next to the page. When you pass an llms option, the same call also writes llms.txt and llms-full.txt for the whole site.",
   },
   {
     question: "What changes for people who visit in a browser?",
