@@ -1,0 +1,67 @@
+import type { Feature } from "../types/landing";
+
+export const FEATURES: readonly Feature[] = [
+  {
+    title: "Content negotiation",
+    body: "A request gets markdown when its path ends in .md, when its Accept header prefers text/markdown or when its user agent belongs to a known AI agent, and every other request gets your HTML page.",
+    frameTitle: "Requests to /pricing",
+    frameSub: "Six requests and the response each one receives",
+    headers: ["Request", "Response"],
+    mono: [true, false],
+    rows: [
+      ["GET /pricing.md", "text/markdown"],
+      ["Accept: text/markdown", "text/markdown"],
+      ["User-Agent: GPTBot/1.2", "text/markdown"],
+      ["Accept: text/html", "text/html with a Link header"],
+      ["Accept: application/json", "406 Not Acceptable"],
+      ["POST /pricing", "Passed to your app"],
+    ],
+  },
+  {
+    title: "Agent detection",
+    body: "Agentside matches the user agent against a list of known AI agents and tags each match with a vendor and a purpose, and you can target variants at any of those tags.",
+    frameTitle: "Known agents",
+    frameSub: "A sample of the list that ships with the package",
+    headers: ["Agent", "Vendor", "Purpose"],
+    mono: [true, false, false],
+    vendorColumn: 1,
+    rows: [
+      ["ChatGPT-User", "OpenAI", "User action"],
+      ["OAI-SearchBot", "OpenAI", "Search"],
+      ["GPTBot", "OpenAI", "Training"],
+      ["Claude-User", "Anthropic", "User action"],
+      ["ClaudeBot", "Anthropic", "Training"],
+      ["PerplexityBot", "Perplexity", "Search"],
+      ["Google-Extended", "Google", "Training"],
+    ],
+  },
+  {
+    title: "Variants per agent",
+    body: "A route can carry a list of variants that target agents by name, vendor or purpose. Agentside serves the first variant that matches and names it in the X-Agentside-Variant header.",
+    frameTitle: "Variants on /pricing",
+    frameSub: "Agentside checks them from top to bottom",
+    headers: ["Variant", "Served to", "Source"],
+    mono: [true, false, false],
+    rows: [
+      ["pricing-search", "Search agents", "pricing-v2.md on the CMS"],
+      ["pricing-short", "ChatGPT-User and Claude-User", "shortPricing"],
+      ["control", "Every other agent", "renderPricingMarkdown()"],
+    ],
+  },
+  {
+    title: "Fallbacks for broken twins",
+    body: "Each source runs inside Effect with retries and a timeout. When a twin fails, a negotiated request gets your HTML page and an explicit .md request gets a markdown 404 or 503.",
+    frameTitle: "When a twin fails",
+    frameSub: "What the agent receives in each case",
+    headers: ["Situation", "Response"],
+    mono: [false, false],
+    rows: [
+      ["The variant source throws", "The control twin"],
+      ["The twin render throws", "Your HTML page with a 200"],
+      ["The page has no twin", "Your HTML page with a 200"],
+      ["A .md URL has no twin", "404 as markdown"],
+      ["A .md render throws", "503 with Retry-After"],
+      ["A remote source hangs", "503 after the timeout"],
+    ],
+  },
+];

@@ -1,0 +1,58 @@
+---
+import type { SectionHeadProps } from "../../types/ui";
+
+type Props = SectionHeadProps;
+
+const { title } = Astro.props;
+---
+
+<header class="section-head">
+  <h2>{title}</h2>
+  {
+    Astro.slots.has("default") && (
+      <p>
+        <slot />
+      </p>
+    )
+  }
+</header>
+
+<style>
+  .section-head {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 2.5rem;
+    text-align: center;
+  }
+
+  @media (min-width: 40rem) {
+    .section-head {
+      margin-bottom: 3.375rem;
+    }
+  }
+
+  h2 {
+    max-width: 54rem;
+    margin: 0;
+    font-family: var(--display);
+    font-size: clamp(2rem, 4.4vw, 3.0625rem);
+    font-weight: 500;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+
+  p {
+    max-width: 51.5rem;
+    margin: 0;
+    color: var(--soft);
+    font-family: var(--display);
+    font-size: clamp(1rem, 2vw, 1.25rem);
+    font-weight: 500;
+    line-height: 1.5;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+</style>

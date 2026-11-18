@@ -1,0 +1,54 @@
+---
+import type { SectionProps } from "../../types/ui";
+
+type Props = SectionProps;
+
+const { id, narrow = false, bleed = false } = Astro.props;
+---
+
+<section class="section" id={id}>
+  {
+    bleed ? (
+      <slot />
+    ) : (
+      <div class:list={["wrap", { narrow }]}>
+        <slot />
+      </div>
+    )
+  }
+</section>
+
+<style>
+  .section {
+    padding: 4rem 0 0;
+  }
+
+  @media (min-width: 64rem) {
+    .section {
+      padding-top: 8.75rem;
+    }
+  }
+
+  .wrap {
+    width: 100%;
+    max-width: 90rem;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+  }
+
+  .wrap.narrow {
+    max-width: 66rem;
+  }
+
+  @media (min-width: 40rem) {
+    .wrap {
+      padding: 0 3rem;
+    }
+  }
+
+  @media (min-width: 64rem) {
+    .wrap {
+      padding: 0 5rem;
+    }
+  }
+</style>

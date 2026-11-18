@@ -9,6 +9,19 @@
   font-display: swap;
 }
 
+/* Registered so the CtaButton gradient stops can transition on hover. */
+@property --cta-gradient-from {
+  syntax: "<color>";
+  inherits: false;
+  initial-value: oklab(100% 0 0);
+}
+
+@property --cta-gradient-to {
+  syntax: "<color>";
+  inherits: false;
+  initial-value: oklab(100% 0 0);
+}
+
 :root {
   color-scheme: light dark;
   --bg: #ffffff;
@@ -28,7 +41,14 @@
   --dither: #8b5cf633;
   --card-bg: linear-gradient(180deg, oklab(95.1% 0.011 -0.018 / 15%) 0%, oklab(93.7% 0.019 -0.031 / 75%) 100%);
   --footer-bg: linear-gradient(180deg, oklab(80.3% 0.045 -0.074 / 15%) 0%, oklab(71.8% 0.066 -0.109 / 50%) 100%);
-  --frame-shadow: 0 0.125rem 1.4375rem #0000001a, 0 0.0625rem 0.125rem #0000000a;
+  /*
+   * Layered, in Notra's cool near-black: a crisp contact shadow, then soft layers with negative
+   * spread so the depth falls below the card instead of hazing its sides and the cards beside it.
+   */
+  --frame-shadow:
+    0 0.0625rem 0.125rem #0a0d140d,
+    0 0.25rem 0.5rem -0.125rem #0a0d140a,
+    0 0.75rem 1.5rem -0.5rem #0a0d1414;
   --island-shadow: 0 0.125rem 1.25rem #1e1e1e14, 0 0.0625rem 0.125rem #28282814, 0 0 0 1px #1e1e1e14;
   --sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --display: "Satoshi", "Inter Variable", ui-sans-serif, system-ui, sans-serif;
@@ -41,12 +61,15 @@
     --surface: hsl(240 6% 10%);
     --muted-surface: hsl(240 5% 13%);
     --text: #fafafa;
-    --soft: #ffffffb3;
-    --muted: #ffffff99;
-    --border: hsl(0 1% 17%);
+    /* Text levels tuned for APCA on the dark surfaces: soft ≈ Lc 80 (body copy), muted ≈ Lc 67 (secondary). */
+    --soft: #ffffffd1;
+    --muted: #ffffffb8;
+    --border: hsl(240 4% 17%);
     --hairline: #ffffff1a;
     --ring: #ffffff14;
-    --primary-text: #b69cf7;
+    /* Brighter violets so accents keep their contrast on dark: text ≈ Lc 65, icons and focus rings ≈ Lc 49. */
+    --primary: #a78bfa;
+    --primary-text: #c4b1fa;
     --tint: #2a2140;
     --tint-hover: #ffffff0f;
     --dither: #8b5cf62e;
@@ -102,6 +125,26 @@ pre {
     font-style: var(--shiki-dark-font-style) !important;
     font-weight: var(--shiki-dark-font-weight) !important;
   }
+}
+
+h3 {
+  margin: 0;
+  font-size: clamp(1.125rem, 2.4vw, 1.5625rem);
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: -0.015em;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
 :focus-visible {

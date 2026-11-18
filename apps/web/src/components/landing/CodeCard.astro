@@ -1,0 +1,38 @@
+---
+import { Code } from "astro:components";
+import { CODE_THEMES } from "../../constants/setup";
+import type { CodeCardProps } from "../../types/landing";
+import Frame from "../ui/Frame.astro";
+
+type Props = CodeCardProps;
+
+const { title, code, lang } = Astro.props;
+---
+
+<Frame class="code-card">
+  <div class="code-title">{title}</div>
+  <Code code={code} lang={lang} themes={CODE_THEMES} defaultColor="light" />
+</Frame>
+
+<style>
+  .code-card {
+    overflow: hidden;
+  }
+
+  .code-title {
+    padding: 0.75rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--muted-surface);
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.75rem;
+  }
+
+  .code-card :global(pre) {
+    margin: 0;
+    padding: 1.25rem;
+    overflow-x: auto;
+    font-size: 0.8125rem;
+    line-height: 1.7;
+  }
+</style>

@@ -1,0 +1,32 @@
+---
+import { EXPOSURE_CODE, SETUP_CODE, VARIANTS_CODE } from "../../constants/setup";
+import { DOCS_URL } from "../../constants/site";
+import Section from "../ui/Section.astro";
+import SectionHead from "../ui/SectionHead.astro";
+import CodeCard from "./CodeCard.astro";
+import SplitRow from "./SplitRow.astro";
+---
+
+<Section id="setup">
+  <SectionHead title="Describe your twins in one file.">
+    A route maps a path to a source, and the handler takes a standard Request and returns a standard Response, which
+    lets the same config run in server middleware, an edge worker or a plain fetch handler.
+  </SectionHead>
+  <SplitRow
+    title="Routes and sources"
+    body="A source is a string, a function that returns markdown or a remote URL that Agentside fetches with a timeout and retries. When a function returns null the page has no twin, and Agentside passes the request to your app."
+    href={`${DOCS_URL}/routes`}
+    linkLabel="Read about routes and sources"
+  >
+    <CodeCard title="middleware.ts" code={SETUP_CODE} lang="ts" />
+  </SplitRow>
+  <SplitRow
+    title="Test what each agent reads"
+    body="The onServe callback hands you an exposure event for each read, with the path, the variant, the agent and the response status. A GEO team can join those events with the citations and answers that follow."
+    href={`${DOCS_URL}/variants`}
+    linkLabel="Read about A/B variants"
+  >
+    <CodeCard title="variants" code={VARIANTS_CODE} lang="ts" />
+    <CodeCard title="onServe event" code={EXPOSURE_CODE} lang="json" />
+  </SplitRow>
+</Section>

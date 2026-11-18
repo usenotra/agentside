@@ -1,0 +1,143 @@
+---
+import { AGENT_EXCHANGE, BROWSER_EXCHANGE } from "../../constants/hero";
+import { DOCS_URL, GITHUB_URL } from "../../constants/site";
+import Dither from "../ui/Dither.astro";
+import GitHubLogo from "../ui/logos/GitHubLogo.astro";
+import HttpExchange from "./HttpExchange.astro";
+import InstallCommand from "./InstallCommand.astro";
+---
+
+<section class="hero">
+  <div class="hero-panel">
+    <Dither />
+    <div class="hero-copy">
+      <h1>Serve AI agents a markdown version of every page.</h1>
+      <p class="lede">
+        Agentside is a TypeScript library that answers ChatGPT, Claude and Perplexity with a markdown twin of the page
+        they asked for, and it lets you A/B test what each agent reads.
+      </p>
+      <InstallCommand />
+      <p class="hero-links">
+        <a href={`${DOCS_URL}/quickstart`}>Read the quickstart</a>
+        <a href={GITHUB_URL}><GitHubLogo />View the source on GitHub</a>
+      </p>
+    </div>
+
+    <div class="demo">
+      <HttpExchange title="A browser requests /pricing" lines={BROWSER_EXCHANGE} />
+      <HttpExchange title="GPTBot requests the same URL" lines={AGENT_EXCHANGE} agent />
+    </div>
+  </div>
+</section>
+
+<style>
+  .hero {
+    margin-top: -6.25rem;
+    padding: 1.5rem 0.75rem 0;
+  }
+
+  @media (min-width: 48rem) {
+    .hero {
+      padding: 1.5rem 1.5rem 0;
+    }
+  }
+
+  .hero-panel {
+    position: relative;
+    isolation: isolate;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow: clip;
+    border-radius: 1.5rem;
+    background: var(--tint);
+  }
+
+  .hero-copy {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    padding: 7.5rem 1rem 0;
+    text-align: center;
+  }
+
+  @media (min-width: 64rem) {
+    .hero-copy {
+      padding-top: 9.5rem;
+    }
+  }
+
+  h1 {
+    max-width: 66rem;
+    margin: 0;
+    font-family: var(--display);
+    font-size: clamp(2.125rem, 6.6vw, 4.75rem);
+    font-weight: 600;
+    line-height: 1.1;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+  }
+
+  .lede {
+    max-width: 43rem;
+    margin: 1.75rem 0 0;
+    color: var(--soft);
+    font-size: clamp(1rem, 2.2vw, 1.25rem);
+    font-weight: 500;
+    line-height: 1.4;
+    letter-spacing: -0.005em;
+    text-wrap: pretty;
+  }
+
+  .hero-links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem 1.75rem;
+    margin: 1.5rem 0 0;
+    font-size: 0.9375rem;
+    font-weight: 500;
+  }
+
+  .hero-links a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    color: var(--soft);
+    text-decoration-color: var(--hairline);
+    text-underline-offset: 4px;
+    transition: color 150ms ease-out;
+  }
+
+  .hero-links a:hover {
+    color: var(--text);
+  }
+
+  /* Same surface as Frame, but open at the bottom so it bleeds off the hero panel. */
+  .demo {
+    display: grid;
+    width: calc(100% - 1.5rem);
+    max-width: 64rem;
+    margin-top: 3.5rem;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-bottom: 0;
+    border-radius: 1rem 1rem 0 0;
+    background: var(--surface);
+    box-shadow: var(--frame-shadow);
+  }
+
+  @media (min-width: 56rem) {
+    .demo {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      margin-top: 4.5rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-links a {
+      transition: none;
+    }
+  }
+</style>

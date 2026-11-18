@@ -1,0 +1,55 @@
+---
+import type { SplitRowProps } from "../../types/landing";
+import TextLink from "../ui/TextLink.astro";
+
+type Props = SplitRowProps;
+
+const { title, body, href, linkLabel } = Astro.props;
+---
+
+<div class="split">
+  <div class="text">
+    <h3>{title}</h3>
+    <p>{body}</p>
+    <TextLink href={href}>{linkLabel}</TextLink>
+  </div>
+  <div class="demo">
+    <slot />
+  </div>
+</div>
+
+<style>
+  .split {
+    display: grid;
+    gap: 1.5rem;
+    align-items: start;
+  }
+
+  .split + .split {
+    margin-top: 3rem;
+  }
+
+  @media (min-width: 64rem) {
+    .split {
+      grid-template-columns: minmax(0, 4fr) minmax(0, 8fr);
+      gap: 4rem;
+    }
+
+    .split + .split {
+      margin-top: 4rem;
+    }
+  }
+
+  .text p {
+    margin: 0.75rem 0 1.25rem;
+    color: var(--muted);
+    font-weight: 500;
+    text-wrap: pretty;
+  }
+
+  .demo {
+    display: grid;
+    gap: 1rem;
+    min-width: 0;
+  }
+</style>

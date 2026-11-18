@@ -1,0 +1,99 @@
+---
+import { DOCS_URL } from "../../constants/site";
+import CtaButton from "../ui/CtaButton.astro";
+import Dither from "../ui/Dither.astro";
+import Section from "../ui/Section.astro";
+---
+
+<Section bleed>
+  <div class="cta-wrap">
+    <div class="banner">
+      <Dither />
+      <div class="inner">
+        <h2>Start serving markdown to the agents that read your site.</h2>
+        <p>
+          The quickstart takes you from the install command to a first markdown response, and the docs cover each
+          framework and the move from Dualmark.
+        </p>
+        <div class="actions">
+          <CtaButton href={`${DOCS_URL}/quickstart`}>Read the quickstart</CtaButton>
+          <CtaButton href={`${DOCS_URL}/migrating-from-dualmark`} variant="light">Migrate from Dualmark</CtaButton>
+        </div>
+      </div>
+    </div>
+  </div>
+</Section>
+
+<style>
+  .cta-wrap {
+    padding-right: 1.5rem;
+    padding-bottom: 4rem;
+    padding-left: 1.5rem;
+  }
+
+  @media (min-width: 64rem) {
+    .cta-wrap {
+      padding-right: 5rem;
+      padding-bottom: 6.875rem;
+      padding-left: 5rem;
+    }
+  }
+
+  .banner {
+    position: relative;
+    isolation: isolate;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    max-width: 87rem;
+    margin: 0 auto;
+    padding: 3rem 1.5rem;
+    overflow: clip;
+    border-radius: 1.5625rem;
+    background: var(--tint);
+  }
+
+  @media (min-width: 40rem) {
+    .banner {
+      min-height: 27.5rem;
+      padding: 4rem 1.5rem;
+    }
+  }
+
+  .inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  h2 {
+    max-width: 50rem;
+    margin: 0;
+    font-family: var(--display);
+    font-size: clamp(2.25rem, 5.4vw, 4rem);
+    font-weight: 500;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    text-wrap: balance;
+  }
+
+  p {
+    max-width: 35rem;
+    margin: 1.125rem 0 0;
+    color: var(--soft);
+    font-size: 1.125rem;
+    font-weight: 500;
+    line-height: 1.45;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1.25rem 1.75rem;
+    margin-top: 2.625rem;
+  }
+</style>

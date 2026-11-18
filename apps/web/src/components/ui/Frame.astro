@@ -1,0 +1,22 @@
+---
+// The bordered surface shared by the hero demo, code cards, mock frames and the benchmark table.
+import type { FrameProps } from "../../types/ui";
+
+type Props = FrameProps;
+
+const { class: className, ...rest } = Astro.props;
+---
+
+<div class:list={["frame", className]} {...rest}>
+  <slot />
+</div>
+
+<style>
+  .frame {
+    min-width: 0;
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    background: var(--surface);
+    box-shadow: var(--frame-shadow);
+  }
+</style>

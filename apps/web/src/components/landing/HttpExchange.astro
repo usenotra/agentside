@@ -1,0 +1,85 @@
+---
+import type { HttpExchangeProps } from "../../types/landing";
+
+type Props = HttpExchangeProps;
+
+const { title, lines, agent = false } = Astro.props;
+---
+
+<div class="exchange">
+  <p class="exchange-title"><span class:list={["dot", { agent }]}></span>{title}</p>
+  <pre data-language="http">{lines.map(([kind, text]) => <span class:list={["line", kind]}>{text}</span>)}</pre>
+</div>
+
+<style>
+  .exchange {
+    min-width: 0;
+    padding: 1.25rem 1.25rem 0;
+  }
+
+  .exchange + .exchange {
+    border-top: 1px solid var(--border);
+  }
+
+  @media (min-width: 56rem) {
+    .exchange {
+      padding: 1.5rem 1.5rem 0;
+    }
+
+    .exchange + .exchange {
+      border-top: 0;
+      border-left: 1px solid var(--border);
+    }
+  }
+
+  .exchange-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0 0 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  .dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 999px;
+    background: var(--border);
+    box-shadow: 0 0 0 1px var(--hairline);
+  }
+
+  .dot.agent {
+    background: var(--primary);
+    box-shadow: 0 0 0 0.1875rem #8b5cf640;
+  }
+
+  pre {
+    margin: 0;
+    padding-bottom: 0.5rem;
+    overflow-x: auto;
+    color: var(--muted);
+    font-size: 0.78125rem;
+    line-height: 1.7;
+    mask-image: linear-gradient(to bottom, black 70%, transparent);
+  }
+
+  .line {
+    display: block;
+    min-height: 1.7em;
+  }
+
+  .req,
+  .status {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .mark {
+    color: var(--primary-text);
+  }
+
+  .body {
+    color: var(--soft);
+  }
+</style>

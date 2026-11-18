@@ -1,0 +1,139 @@
+---
+import { BENCHMARK_ROWS, BENCHMARK_VENDORS } from "../../constants/benchmarks";
+import { BENCHMARKS_URL } from "../../constants/site";
+import Frame from "../ui/Frame.astro";
+import Section from "../ui/Section.astro";
+import SectionHead from "../ui/SectionHead.astro";
+import TextLink from "../ui/TextLink.astro";
+---
+
+<Section id="benchmarks">
+  <SectionHead title="Benchmarks against Dualmark and a homegrown setup.">
+    Agentside and Dualmark 0.11 ran through the same harness on Bun 1.4 and an Apple M5, and lower numbers are better.
+    The AI Inbx column is their own measurement of a homegrown setup on a 39 KB pricing page, so treat it as
+    indicative.
+  </SectionHead>
+  <Frame class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Scenario</th>
+          {
+            BENCHMARK_VENDORS.map((vendor) => (
+              <th scope="col">
+                <span class="vendor">
+                  {vendor.logo && <img src={vendor.logo} alt="" width="20" height="20" />}
+                  {vendor.label}
+                </span>
+              </th>
+            ))
+          }
+        </tr>
+      </thead>
+      <tbody>
+        {
+          BENCHMARK_ROWS.map((row) => (
+            <tr>
+              <th scope="row">{row.scenario}</th>
+              {row.cells.map((cell, index) => (
+                <td class={index === 0 ? "best" : undefined}>
+                  {typeof cell === "string" ? (
+                    cell
+                  ) : (
+                    <>
+                      {cell.before}
+                      <code>{cell.code}</code>
+                      {cell.after}
+                    </>
+                  )}
+                </td>
+              ))}
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </Frame>
+  <p class="aside">
+    A network round trip to your server takes thousands of times longer than any number in this table, so these
+    latencies will not change how fast an agent gets your page, and we optimized them anyway. You can{" "}
+    <TextLink href={BENCHMARKS_URL}>run the benchmark harness yourself</TextLink> to check them.
+  </p>
+</Section>
+
+<style>
+  .table-scroll {
+    overflow-x: auto;
+  }
+
+  table {
+    width: 100%;
+    min-width: 46rem;
+    border-collapse: collapse;
+    font-size: 0.9375rem;
+  }
+
+  /* Middle-aligned so a one-line value gets even space above and below when the scenario wraps. */
+  th,
+  td {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    vertical-align: middle;
+  }
+
+  tbody tr:last-child th,
+  tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  thead th {
+    height: 3rem;
+    padding-block: 0;
+    background: var(--muted-surface);
+    color: var(--muted);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  tbody th {
+    font-weight: 500;
+  }
+
+  td {
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  td.best {
+    color: var(--primary-text);
+    font-weight: 600;
+  }
+
+  code {
+    font-size: 0.8125rem;
+  }
+
+  /* A block-level flex row, so the logo doesn't become the baseline and pad the line box. */
+  .vendor {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text);
+  }
+
+  .vendor img {
+    flex-shrink: 0;
+    border-radius: 0.25rem;
+  }
+
+  .aside {
+    max-width: 46rem;
+    margin: 1.75rem auto 0;
+    color: var(--muted);
+    font-weight: 500;
+    text-align: center;
+    text-wrap: pretty;
+  }
+</style>

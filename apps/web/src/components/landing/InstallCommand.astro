@@ -1,0 +1,62 @@
+---
+import { INSTALL_COMMAND } from "../../constants/hero";
+import CopyButton from "../ui/CopyButton.astro";
+---
+
+<div class="install">
+  <span class="prompt" aria-hidden="true">$</span>
+  <code>{INSTALL_COMMAND}</code>
+  <CopyButton text={INSTALL_COMMAND} label="Copy install command" />
+</div>
+
+<style>
+  .install {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    max-width: 100%;
+    height: 3.25rem;
+    margin-top: 2.5rem;
+    padding: 0 0.4375rem 0 1.125rem;
+    border-radius: 999px;
+    background: var(--surface);
+    box-shadow:
+      0 0.0625rem 0.125rem #28282814,
+      0 0 0 1px var(--hairline);
+    font-size: 0.8125rem;
+  }
+
+  code {
+    min-width: 0;
+    margin-right: 0.75rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .prompt {
+    color: var(--muted);
+    font-family: var(--mono);
+  }
+
+  @media (max-width: 29.99rem) {
+    .install {
+      padding-left: 1rem;
+      font-size: 0.75rem;
+    }
+
+    code {
+      margin-right: 0.125rem;
+    }
+
+    .prompt {
+      display: none;
+    }
+  }
+
+  @media (min-width: 30rem) {
+    .install {
+      font-size: 0.9375rem;
+    }
+  }
+</style>

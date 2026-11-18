@@ -1,0 +1,98 @@
+---
+import { FAQ_ITEMS } from "../../constants/faq";
+import Section from "../ui/Section.astro";
+import SectionHead from "../ui/SectionHead.astro";
+---
+
+<Section id="faq" narrow>
+  <SectionHead title="Questions people ask before they install." />
+  <div class="faq">
+    {
+      FAQ_ITEMS.map((item, index) => (
+        <details open={index === 0}>
+          <summary>
+            <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M20 12H4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+              <path class="bar" d="M12 4v16" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            </svg>
+            <span>{item.question}</span>
+          </summary>
+          <p>{item.answer}</p>
+        </details>
+      ))
+    }
+  </div>
+</Section>
+
+<style>
+  details {
+    padding: 1.25rem 0;
+    border-top: 1px solid var(--hairline);
+  }
+
+  details:last-child {
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  @media (min-width: 40rem) {
+    details {
+      padding: 1.875rem 0;
+    }
+  }
+
+  summary {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    cursor: pointer;
+    font-size: clamp(1rem, 2vw, 1.25rem);
+    font-weight: 500;
+    line-height: 1.5;
+    letter-spacing: -0.01em;
+    list-style: none;
+  }
+
+  @media (min-width: 40rem) {
+    summary {
+      gap: 2rem;
+    }
+  }
+
+  summary::-webkit-details-marker {
+    display: none;
+  }
+
+  summary svg {
+    flex-shrink: 0;
+    color: var(--primary);
+  }
+
+  .bar {
+    transform-origin: center;
+    transition: transform 250ms ease-out;
+  }
+
+  details[open] .bar {
+    transform: scaleY(0);
+  }
+
+  details p {
+    max-width: 52rem;
+    margin: 0.875rem 0 0 2.5rem;
+    color: var(--soft);
+    letter-spacing: -0.01em;
+    text-wrap: pretty;
+  }
+
+  @media (min-width: 40rem) {
+    details p {
+      margin-left: 3.5rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .bar {
+      transition: none;
+    }
+  }
+</style>
