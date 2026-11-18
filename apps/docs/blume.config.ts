@@ -1,4 +1,7 @@
 import { defineConfig } from "blume";
+import { databuddy, script } from "blume/analytics";
+
+const DATABUDDY_CLIENT_ID = "8bbb2d0d-30de-45f8-9c69-7a46b1e03eec";
 
 export default defineConfig({
   title: "Agentside",
@@ -30,6 +33,14 @@ export default defineConfig({
     base: "/docs",
     site: "https://agentside.usenotra.com",
   },
+  analytics: [
+    databuddy({ clientId: DATABUDDY_CLIENT_ID, "track-web-vitals": "true" }),
+    script({
+      src: "https://cdn.databuddy.cc/replay.js",
+      strategy: "async",
+      attributes: { "data-client-id": DATABUDDY_CLIENT_ID, crossorigin: "anonymous" },
+    }),
+  ],
   theme: {
     accent: { light: "#7c3aed", dark: "#a78bfa" },
   },

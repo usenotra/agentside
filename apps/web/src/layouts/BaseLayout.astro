@@ -25,5 +25,15 @@ import { OG_IMAGE_ALT, OG_IMAGE_URL, SITE_DESCRIPTION, SITE_TITLE, SITE_URL } fr
   </head>
   <body>
     <slot />
+    <script>
+      import { init } from "@databuddy/sdk";
+      import { DATABUDDY_CLIENT_ID } from "../constants/analytics";
+
+      init({
+        clientId: DATABUDDY_CLIENT_ID,
+        autocapture: { webVitals: true },
+        replay: true,
+      });
+    </script>
   </body>
 </html>
