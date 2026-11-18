@@ -1,7 +1,18 @@
 import { defineConfig } from "blume";
-import { databuddy, script } from "blume/analytics";
+import { script } from "blume/analytics";
 
 const DATABUDDY_CLIENT_ID = "8bbb2d0d-30de-45f8-9c69-7a46b1e03eec";
+
+// Pinned to the tracker files @databuddy/sdk 3.5.1 ships with (dist/script-*.mjs).
+const DATABUDDY_CDN = "https://cdn.databuddy.cc";
+const DATABUDDY_TRACKER = {
+  file: "databuddy.2026-11-10.2.js",
+  integrity: "sha384-8dDxbfqq6pDesWbmOQkFMFRrJVB+xCnyKaCj8R6GWA/GvUEcy3zUkP6dMWoRA1MU",
+};
+const DATABUDDY_REPLAY = {
+  file: "replay.2026-11-10.2.js",
+  integrity: "sha384-w40v7LfGCSUEdxa364DsLkA8QUbllix4Udt/JK+Nsd7Zinf2ScKoW1A3YYMmwFvx",
+};
 
 export default defineConfig({
   title: "Agentside",
@@ -34,11 +45,24 @@ export default defineConfig({
     site: "https://agentside.usenotra.com",
   },
   analytics: [
-    databuddy({ clientId: DATABUDDY_CLIENT_ID, "track-web-vitals": "true" }),
     script({
-      src: "https://cdn.databuddy.cc/replay.js",
+      src: `${DATABUDDY_CDN}/${DATABUDDY_TRACKER.file}`,
       strategy: "async",
-      attributes: { "data-client-id": DATABUDDY_CLIENT_ID, crossorigin: "anonymous" },
+      attributes: {
+        "data-client-id": DATABUDDY_CLIENT_ID,
+        "data-track-web-vitals": "true",
+        integrity: DATABUDDY_TRACKER.integrity,
+        crossorigin: "anonymous",
+      },
+    }),
+    script({
+      src: `${DATABUDDY_CDN}/${DATABUDDY_REPLAY.file}`,
+      strategy: "async",
+      attributes: {
+        "data-client-id": DATABUDDY_CLIENT_ID,
+        integrity: DATABUDDY_REPLAY.integrity,
+        crossorigin: "anonymous",
+      },
     }),
   ],
   theme: {
