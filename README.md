@@ -94,7 +94,7 @@ await prerender({ routes }, { outDir: "dist/client", paths: ["/", "/pricing", "/
 
 ## Static sites: convert your built HTML
 
-If your pages are static, you don't need to write any markdown. After your build, `prerenderHtml` reads every `.html` file, converts the page's `<main>` (falling back to `<article>` and `<body>`) to markdown and writes it next to the page as `.md`. It also writes `llms.txt` and `llms-full.txt`.
+If your pages are static, you don't need to write any markdown. After your build, `prerenderHtml` reads every `.html` file, converts the page's `<main>` (falling back to `<article>` and `<body>`) to markdown and writes it next to the page as `.md`. With the `llms` option, it also writes `llms.txt` and `llms-full.txt`.
 
 ```ts
 import { prerenderHtml } from "@usenotra/agentside/build";

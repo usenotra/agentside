@@ -1,0 +1,22 @@
+<canvas class="dither" data-dither aria-hidden="true"></canvas>
+
+<style>
+  .dither {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+    pointer-events: none;
+  }
+</style>
+
+<script>
+  import { startDither } from "../../utils/dither";
+
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  document.querySelectorAll<HTMLCanvasElement>("canvas[data-dither]").forEach((canvas) => {
+    startDither(canvas, reduceMotion);
+  });
+</script>

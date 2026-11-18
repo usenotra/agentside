@@ -1,0 +1,30 @@
+---
+import { FEATURES } from "../../constants/features";
+import Section from "../ui/Section.astro";
+import SectionHead from "../ui/SectionHead.astro";
+import FeatureCard from "./FeatureCard.astro";
+---
+
+<Section id="features">
+  <SectionHead title="One URL serves people and agents.">
+    Agentside reads the path, the Accept header and the user agent of each request, and then it decides whether the
+    visitor gets your HTML page or its markdown twin.
+  </SectionHead>
+  <div class="grid">
+    {FEATURES.map((feature) => <FeatureCard feature={feature} />)}
+  </div>
+</Section>
+
+<style>
+  .grid {
+    display: grid;
+    gap: 1.25rem;
+  }
+
+  @media (min-width: 64rem) {
+    .grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 2rem;
+    }
+  }
+</style>

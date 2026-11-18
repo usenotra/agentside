@@ -1,0 +1,46 @@
+---
+// Mirrors the Notra landing MockFrame: a titled surface that frames a product mock.
+import type { MockFrameProps } from "../../types/ui";
+import Frame from "../ui/Frame.astro";
+
+type Props = MockFrameProps;
+
+const { title, subtitle } = Astro.props;
+---
+
+<Frame class="mock-frame">
+  <p class="title">{title}</p>
+  <p class="subtitle">{subtitle}</p>
+  <div class="body">
+    <slot />
+  </div>
+</Frame>
+
+<style>
+  .mock-frame {
+    padding: 1rem;
+  }
+
+  .title,
+  .subtitle {
+    margin: 0;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+
+  .title {
+    font-weight: 500;
+  }
+
+  .subtitle {
+    margin-top: 0.25rem;
+    color: var(--muted);
+  }
+
+  .body {
+    margin-top: 0.75rem;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+  }
+</style>

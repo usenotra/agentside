@@ -1,0 +1,128 @@
+---
+import { FOOTER_COLUMNS } from "../../constants/navigation";
+import { NOTRA_URL } from "../../constants/site";
+import Brand from "../ui/Brand.astro";
+
+const year = new Date().getFullYear();
+---
+
+<footer class="site-footer">
+  <div class="inner">
+    <div class="brand-column">
+      <Brand />
+      <p>
+        Agentside is an open source library from <a href={NOTRA_URL}>Notra</a> that serves markdown versions of your pages
+        to AI agents.
+      </p>
+    </div>
+    {
+      FOOTER_COLUMNS.map((column) => (
+        <nav aria-label={column.heading}>
+          <p class="heading">{column.heading}</p>
+          <ul>
+            {column.links.map((link) => (
+              <li>
+                <a href={link.href}>{link.label}</a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      ))
+    }
+  </div>
+  <p class="legal">© {year} Notra, Inc. Agentside ships under the MIT license.</p>
+</footer>
+
+<style>
+  .site-footer {
+    padding: 3rem 1.5rem 2rem;
+    border-radius: 1.5rem 1.5rem 0 0;
+    background: var(--footer-bg);
+    box-shadow:
+      0 0.0625rem 0.125rem #28282814,
+      0 0 0 1px var(--ring);
+  }
+
+  @media (min-width: 64rem) {
+    .site-footer {
+      padding: 4.5rem 5rem 2.5rem;
+    }
+  }
+
+  .inner {
+    display: grid;
+    gap: 2.5rem;
+    max-width: 80rem;
+    margin: 0 auto;
+  }
+
+  @media (min-width: 40rem) {
+    .inner {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .brand-column {
+      grid-column: 1 / -1;
+    }
+  }
+
+  @media (min-width: 64rem) {
+    .inner {
+      grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr));
+      gap: 3rem;
+    }
+
+    .brand-column {
+      grid-column: auto;
+    }
+  }
+
+  .brand-column p {
+    max-width: 22rem;
+    margin: 1rem 0 0;
+    color: var(--soft);
+    font-weight: 500;
+    text-wrap: pretty;
+  }
+
+  .heading {
+    margin: 0 0 1rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  ul {
+    display: grid;
+    gap: 0.625rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  li a {
+    color: var(--soft);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    text-decoration: none;
+    transition: color 150ms ease-out;
+  }
+
+  li a:hover {
+    color: var(--primary-text);
+  }
+
+  .legal {
+    max-width: 80rem;
+    margin: 3.5rem auto 0;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--hairline);
+    color: var(--muted);
+    font-size: 0.875rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    li a {
+      transition: none;
+    }
+  }
+</style>
