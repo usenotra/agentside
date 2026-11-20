@@ -119,11 +119,11 @@ export function agentside(config: AgentsideConfig) {
 
       const response = await next();
       if (config.linkHeader === false) {
-        return setHeaders(response, { Vary: "Accept" });
+        return setHeaders(response, { Vary: "Accept, User-Agent" });
       }
       return setHeaders(response, {
         Link: `<${toMarkdownPath(pathname)}>; rel="alternate"; type="text/markdown"`,
-        Vary: "Accept",
+        Vary: "Accept, User-Agent",
       });
     },
   };
