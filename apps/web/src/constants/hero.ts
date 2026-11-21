@@ -10,7 +10,7 @@ export const BROWSER_EXCHANGE: readonly ExchangeLine[] = [
   ["status", "200 OK"],
   ["head", "Content-Type: text/html; charset=utf-8"],
   ["mark", 'Link: </pricing.md>; rel="alternate"; type="text/markdown"'],
-  ["head", "Vary: Accept"],
+  ["head", "Vary: Accept, User-Agent"],
   ["gap", ""],
   ["body", "<!doctype html>"],
   ["body", '<html lang="en">'],
