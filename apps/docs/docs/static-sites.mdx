@@ -33,12 +33,12 @@ Run it after the framework build, for example `"build": "astro build && bun scri
 | `selector` | `main`, then `article`, then `body` | The element that holds the page content. |
 | `siteUrl` | | Makes relative links and image sources absolute and prefixes the links in `llms.txt`. |
 | `exclude` | `[]` | Path prefixes to skip, such as `/admin`. |
-| `llms` | | `{ title, description?, sections? }` writes `llms.txt` and `llms-full.txt`. Leave it out to skip both. |
+| `llms` | | `{ title, description?, sections?, order?, links? }` writes `llms.txt` and `llms-full.txt`. Leave it out to skip both. |
 | `normalize` | `false` | Replaces typographic Unicode such as smart quotes and non-breaking spaces with ASCII, like [runtime twins](/routes#unicode-normalization) do. |
 
 `dist/index.html` becomes `dist/index.md`, `dist/pricing/index.html` and `dist/pricing.html` both become `dist/pricing.md`. `404.html` and `500.html` are skipped.
 
-If a page fails to convert, the build fails with one error that lists every failing path, so a broken twin never ships silently. The function returns the converted pages as `{ path, title, description, markdown }`, sorted by path.
+If a page fails to convert, the build fails with one error that lists every failing path, so a broken twin never ships silently. The function returns the converted pages as `{ path, title, description, markdown }`, in `llms.order` and then by path.
 
 ## What gets converted
 
@@ -120,7 +120,7 @@ To convert a single document, for example in a test or a custom pipeline, call `
 
 With `llms`, `prerenderHtml` also writes two files to `outDir`.
 
-- **`llms.txt`** starts with the title and description and lists every page as a link to its `.md` twin, using the page's `<title>` and `<meta name="description">`.
+- **`llms.txt`** starts with the title and description and lists every page as a link to its `.md` twin, using the page's `<h1>` (falling back to `<title>`) and `<meta name="description">`.
 - **`llms-full.txt`** holds every twin in one file, separated by `---`, for agents that want the whole site in one request.
 
 Pages in `llms.txt` are grouped into `##` sections. Top-level pages without children go under "Pages" and the rest are grouped by their first path segment, so `/blog/launch` lands under "Blog" and `/docs/setup` under "Docs". `sections` maps a path prefix to a section title of your own and wins over the default.
@@ -145,20 +145,20 @@ await prerenderHtml({
 ## Pages
 
 - [Acme](https://acme.dev/index.md): Invoices your customers actually pay.
-- [Pricing | Acme](https://acme.dev/pricing.md): Plans for every team size.
+- [Pricing](https://acme.dev/pricing.md): Plans for every team size.
 
 ## Blog
 
-- [Blog | Acme](https://acme.dev/blog.md)
-- [We launched | Acme](https://acme.dev/blog/launch.md): Acme is live.
+- [Blog](https://acme.dev/blog.md)
+- [We launched](https://acme.dev/blog/launch.md): Acme is live.
 
 ## Terms and policies
 
-- [Privacy | Acme](https://acme.dev/legal/privacy.md)
-- [Terms | Acme](https://acme.dev/legal/terms.md)
+- [Privacy](https://acme.dev/legal/privacy.md)
+- [Terms](https://acme.dev/legal/terms.md)
 ```
 
-`llmsTxt(pages, { title, description?, siteUrl?, sections? })` and `llmsFullTxt(pages)` are exported too, so you can build both files from your own list of pages.
+`llmsTxt(pages, { title, description?, siteUrl?, sections?, order?, links? })` and `llmsFullTxt(pages, { siteUrl? })` are exported too, so you can build both files from your own list of pages.
 
 ## Negotiating at the CDN
 

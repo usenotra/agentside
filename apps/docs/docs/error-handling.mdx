@@ -20,7 +20,7 @@ A negotiated request is one that Agentside answered with markdown because of the
 
 ## Retries
 
-Remote sources retry network errors and 5xx responses with exponential backoff that starts at 100 milliseconds. Other 4xx responses fail immediately because retrying will not change them.
+Remote sources retry network errors and `408`, `429`, `500`, `502`, `503` and `504` responses with jittered exponential backoff that starts at 100 milliseconds. Any other status fails immediately because retrying will not change it.
 
 ```ts
 agentside({

@@ -3,7 +3,7 @@ import type { Feature } from "../types/landing";
 export const FEATURES: readonly Feature[] = [
   {
     title: "Content negotiation",
-    body: "A request gets markdown when its path ends in .md, when its Accept header prefers text/markdown or when its user agent belongs to a known AI agent, and every other request gets your HTML page.",
+    body: "A request gets markdown when its path ends in .md, when its Accept header mentions text/markdown or when its user agent belongs to a known AI agent, and every other request gets your HTML page.",
     frameTitle: "Requests to /pricing",
     frameSub: "Six requests and the response each one receives",
     headers: ["Request", "Response"],

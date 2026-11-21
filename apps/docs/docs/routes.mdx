@@ -62,8 +62,8 @@ Return `null` or `undefined` when a page has no twin. Agentside treats that as `
 | --- | --- |
 | 2xx | The response body is the twin. |
 | 404 | `NotFound`, same as returning `null`. |
-| Other 4xx | `RemoteFailed` with `status`, not retried. |
-| 5xx or network error | `RemoteFailed`, retried with exponential backoff. |
+| 408, 429, 500, 502, 503 or 504, or a network error | Retried with exponential backoff, then `RemoteFailed`. |
+| Any other status | `RemoteFailed` with `status`, not retried. |
 | Slower than `timeoutMs` | `SourceTimeout`. |
 
 See [Error handling](/error-handling) for retries and timeouts.

@@ -26,7 +26,7 @@ function agentside(config: AgentsideConfig): {
 | `skip` | `string[]` | `[]` | Path prefixes that `handle` never touches. |
 | `cache` | `{ ttlMs?, capacity? } \| false` | `{ ttlMs: 300000, capacity: 1000 }` | In-memory cache settings. See [Caching](/caching). |
 | `timeoutMs` | `number` | `5000` | Timeout for each source load, including retries. |
-| `retries` | `number` | `2` | Retries for remote sources on network errors and 5xx. |
+| `retries` | `number` | `2` | Retries for remote sources on network errors and `408`, `429`, `500`, `502`, `503` and `504` responses. |
 | `cacheControl` | `string` | `"public, max-age=3600"` | `Cache-Control` for markdown responses. |
 | `noindex` | `boolean` | `true` | Adds `X-Robots-Tag: noindex` to markdown responses. |
 | `linkHeader` | `boolean` | `true` | Adds a `Link` header to HTML responses that have a twin. |
@@ -100,17 +100,23 @@ interface ServeEvent {
 
 ## Errors
 
-`NotFound`, `RenderFailed`, `RemoteFailed`, `SourceTimeout` and the `ServeError` union. See [Error handling](/error-handling#typed-errors).
+`NotFound`, `RenderFailed`, `RemoteFailed`, `SourceTimeout` and the `ServeError` union, plus `InvalidConfig`, `FileFailed` and `PrerenderFailed`. See [Error handling](/error-handling#typed-errors) and [Effect API](/effect#errors).
 
 ## agentside/effect
 
 | Export | Description |
 | --- | --- |
-| `make(config)` | The Effect program behind `agentside()`, returning `{ match, serve }`. |
-| `markdownResponse(body, config, status?, extra?)` | Builds a markdown `Response` with Agentside's headers. |
+| `Agentside` | The service tag, with `match` and `serve`. |
+| `layer(config)` | Provides `Agentside`, requires an `HttpClient`. |
+| `layerFetch(config)` | Provides `Agentside` with the fetch `HttpClient`. |
+| `make(config)` | The Effect program behind `agentside()`, returning `{ match, serve }`. Requires an `HttpClient`. |
+| `markdownResponse(body, config, status?, extra?, tokens?)` | Builds a markdown `Response` with Agentside's headers. |
 | `CONTROL` | `"control"` |
-| `Match`, `Served` | Types returned by `match` and `serve`. |
-| Errors | `NotFound`, `RenderFailed`, `RemoteFailed`, `SourceTimeout`, `ServeError` |
+| `Interface`, `Match`, `Served` | The service shape and the types returned by `match` and `serve`. |
+| `prerender`, `prerenderHtml`, `applyVercelBuildOutput` | The Effect versions of the build helpers. |
+| Errors | `NotFound`, `RenderFailed`, `RemoteFailed`, `SourceTimeout`, `ServeError`, `InvalidConfig`, `FileFailed`, `PrerenderFailed` |
+
+`@usenotra/agentside/effect/build` exports the same `prerender`, `prerenderHtml` and `applyVercelBuildOutput` programs.
 
 See [Effect API](/effect) for an example.
 
@@ -150,8 +156,17 @@ interface PrerenderHtmlOptions {
   readonly selector?: string;
   readonly siteUrl?: string;
   readonly exclude?: readonly string[];
-  readonly llms?: { readonly title: string; readonly description?: string; readonly sections?: Record<string, string> } | false;
+  readonly llms?: LlmsOptions | false;
   readonly normalize?: boolean;
+}
+
+interface LlmsOptions {
+  readonly title: string;
+  readonly description?: string;
+  readonly siteUrl?: string;
+  readonly sections?: Record<string, string>;
+  readonly order?: readonly string[];
+  readonly links?: Record<string, readonly { title: string; url: string; description?: string }[]>;
 }
 
 interface PrerenderedPage {
@@ -173,7 +188,7 @@ const pages = await prerenderHtml({
 });
 ```
 
-Converts every built `.html` file in `dir` (except `404.html` and `500.html`) to markdown and writes it to `outDir`, which defaults to `dir`, at its `.md` URL. Only the `selector` element is converted, which defaults to `<main>`, then `<article>`, then `<body>`. `data-ai-ignore` drops an element, `data-ai-content` replaces it with the attribute's markdown, tables become GFM tables, `<dl>` lists become `**term**: definition` items and cards become a linked heading followed by their text. `normalize: true` applies `normalizeUnicode` to the output, which is off by default. With `llms`, it also writes `llms.txt` and `llms-full.txt`. Returns the converted pages sorted by path; any failure throws one error listing every failing path. See [Static sites](/static-sites) for every rule.
+Converts every built `.html` file in `dir` (except `404.html` and `500.html`) to markdown and writes it to `outDir`, which defaults to `dir`, at its `.md` URL. Only the `selector` element is converted, which defaults to `<main>`, then `<article>`, then `<body>`. `data-ai-ignore` drops an element, `data-ai-content` replaces it with the attribute's markdown, tables become GFM tables, `<dl>` lists become `**term**: definition` items and cards become a linked heading followed by their text. `normalize: true` applies `normalizeUnicode` to the output, which is off by default. With `llms`, it also writes `llms.txt` and `llms-full.txt`. Returns the converted pages in `llms.order` and then by path; any failure throws one error listing every failing path. See [Static sites](/static-sites) for every rule.
 
 ### htmlToMarkdown
 
@@ -213,6 +228,7 @@ function vercelRoutes(paths?: readonly string[]): {
     src: string;
     dest?: string;
     has?: Array<{ type: "header"; key: string; value: string }>;
+    missing?: Array<{ type: "header"; key: string; value: string }>;
     headers: Record<string, string>;
     continue?: boolean;
   }>;

@@ -223,7 +223,7 @@ For a server-rendered app, build the file from your own page list with `llmsTxt(
 
 A negotiated request is one that Agentside answered with markdown because of the `Accept` header or the user agent. Those visitors asked for your page, so a broken or missing twin falls back to the page instead of an error. See [Error handling](/error-handling).
 
-Every markdown response carries `Vary: Accept, User-Agent`, and an HTML response that fell back after a negotiated request gets the same `Vary`, so a shared cache never hands a twin to a browser. Each markdown response also says which variant it served in `X-Agentside-Variant`, `control` unless you set up [A/B variants](/variants).
+Every markdown response carries `Vary: Accept, User-Agent`, and so does every HTML response on a path with a route, so a shared cache never hands a twin to a browser. Each markdown response also says which variant it served in `X-Agentside-Variant`, `control` unless you set up [A/B variants](/variants).
 
 ## What you gain
 
