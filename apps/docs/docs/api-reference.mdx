@@ -28,7 +28,7 @@ function agentside(config: AgentsideConfig): {
 | `timeoutMs` | `number` | `5000` | Timeout for each source load, including retries. |
 | `retries` | `number` | `2` | Retries for remote sources on network errors and `408`, `429`, `500`, `502`, `503` and `504` responses. |
 | `cacheControl` | `string` | `"public, max-age=3600"` | `Cache-Control` for markdown responses. |
-| `noindex` | `boolean` | unset | `X-Robots-Tag: noindex` on markdown responses. Unset: only on `.md` URLs and `serve()`, not on markdown that `handle` negotiates on the page URL. `true`: on every markdown response. `false`: never. |
+| `noindex` | `boolean` | unset | `X-Robots-Tag: noindex` on markdown responses. Unset: `handle` sends it on `.md` URLs but not on markdown it negotiates on the page URL, while `serve()` and `markdownResponse()` always send it. `true`: on every markdown response. `false`: never. |
 | `linkHeader` | `boolean` | `true` | Adds a `Link` header to HTML responses that have a twin. |
 | `normalize` | `boolean` | `true` | Replaces typographic Unicode with ASCII. |
 | `onServe` | `(event: ServeEvent) => void` | | Runs after every successful markdown response. |
