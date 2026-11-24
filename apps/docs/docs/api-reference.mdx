@@ -28,7 +28,7 @@ function agentside(config: AgentsideConfig): {
 | `timeoutMs` | `number` | `5000` | Timeout for each source load, including retries. |
 | `retries` | `number` | `2` | Retries for remote sources on network errors and `408`, `429`, `500`, `502`, `503` and `504` responses. |
 | `cacheControl` | `string` | `"public, max-age=3600"` | `Cache-Control` for markdown responses. |
-| `noindex` | `boolean` | `true` | Adds `X-Robots-Tag: noindex` to markdown served on `.md` URLs. Twins served on the page URL never get it. |
+| `noindex` | `boolean` | `true` | Adds `X-Robots-Tag: noindex` to markdown served on `.md` URLs and by `serve()`. Markdown that `handle` negotiates on the page URL never gets it. |
 | `linkHeader` | `boolean` | `true` | Adds a `Link` header to HTML responses that have a twin. |
 | `normalize` | `boolean` | `true` | Replaces typographic Unicode with ASCII. |
 | `onServe` | `(event: ServeEvent) => void` | | Runs after every successful markdown response. |
@@ -241,7 +241,7 @@ import { vercelRoutes } from "@usenotra/agentside/build";
 await Bun.write("vercel.json", JSON.stringify(vercelRoutes(), null, 2));
 ```
 
-Returns Vercel's `routes` array, which runs before the static file lookup. Requests with `Accept: text/markdown` or a known AI agent user agent are rewritten to the page's `.md` file with `Content-Type: text/markdown; charset=utf-8`, `Vary: Accept, User-Agent` and `X-Robots-Tag: noindex`. Direct `.md` requests get the same headers, and HTML pages get `Link: </page.md>; rel="alternate"; type="text/markdown"` plus `Vary: Accept, User-Agent`. Without `paths` it covers every path without a file extension; with `paths` it covers only those pages.
+Returns Vercel's `routes` array, which runs before the static file lookup. Requests with `Accept: text/markdown` or a known AI agent user agent are rewritten to the page's `.md` file with `Content-Type: text/markdown; charset=utf-8` and `Vary: Accept, User-Agent`. Direct `.md` requests get the same headers plus `X-Robots-Tag: noindex`, which `vercelRoutes()` always sets because it takes no config, and HTML pages get `Link: </page.md>; rel="alternate"; type="text/markdown"` plus `Vary: Accept, User-Agent`. Without `paths` it covers every path without a file extension; with `paths` it covers only those pages.
 
 `routes` can't be combined with `rewrites`, `redirects`, `headers`, `cleanUrls` or `trailingSlash` in the same `vercel.json`.
 

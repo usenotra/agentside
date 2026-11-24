@@ -60,10 +60,6 @@ export function agentside(config: AgentsideConfig) {
   const isSkipped = (pathname: string) =>
     skip.some((prefix) => pathname === prefix || pathname.startsWith(prefix.endsWith("/") ? prefix : `${prefix}/`));
 
-  // A twin on its own .md URL is a duplicate, so it gets noindex. A twin served on the page URL is the page
-  // itself for AI search crawlers such as OAI-SearchBot, and noindex there would drop the page from their index.
-  const pageUrlConfig: AgentsideConfig = { ...config, noindex: false };
-
   const respond = Effect.fnUntraced(function* (
     request: Request,
     pathname: string,
@@ -72,15 +68,22 @@ export function agentside(config: AgentsideConfig) {
   ) {
     const started = performance.now();
     const path = toPagePath(pathname);
-    const headerConfig = onPageUrl ? pageUrlConfig : config;
+    // A twin on its own .md URL is a duplicate, so it keeps noindex. A twin served on the page URL is the page
+    // itself for AI search crawlers such as OAI-SearchBot, and noindex there would drop the page from their index.
+    // The header is removed afterwards instead of copying the config, so getters on it keep working.
+    const markdown = (...args: Parameters<typeof markdownResponse>) => {
+      const response = markdownResponse(...args);
+      if (onPageUrl) response.headers.delete("X-Robots-Tag");
+      return response;
+    };
     return yield* service.serve(path, request, agent).pipe(
       Effect.matchEffect({
         onSuccess: ({ body, tokens, variant, cached }) =>
           Effect.sync(() => {
             config.onServe?.({ path, variant, agent, status: 200, cached, durationMs: performance.now() - started });
-            return markdownResponse(
+            return markdown(
               request.method === "HEAD" ? "" : body,
-              headerConfig,
+              config,
               200,
               { "X-Agentside-Variant": variant },
               tokens
@@ -89,10 +92,10 @@ export function agentside(config: AgentsideConfig) {
         onFailure: (error) =>
           Effect.sync(() => {
             if (error._tag === "NotFound") {
-              return markdownResponse(`# Not found\n\nNo markdown version of ${path} exists.\n`, headerConfig, 404);
+              return markdown(`# Not found\n\nNo markdown version of ${path} exists.\n`, config, 404);
             }
             config.onError?.(error, path);
-            return markdownResponse("# Temporarily unavailable\n\nTry again shortly.\n", headerConfig, 503, {
+            return markdown("# Temporarily unavailable\n\nTry again shortly.\n", config, 503, {
               "Retry-After": "30",
             });
           }),

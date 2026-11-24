@@ -55,7 +55,7 @@ export interface AgentsideConfig {
   readonly timeoutMs?: number;
   readonly retries?: number;
   readonly cacheControl?: string;
-  /** Adds `X-Robots-Tag: noindex` to markdown served on `.md` URLs. Twins served on the page URL never get it. */
+  /** Adds `X-Robots-Tag: noindex` to markdown served on `.md` URLs and by `twins.serve()`. Markdown that `handle` negotiates on the page URL never gets it. */
   readonly noindex?: boolean;
   readonly linkHeader?: boolean;
   readonly normalize?: boolean;
