@@ -38,8 +38,7 @@
       "dest": "/index.md",
       "headers": {
         "Content-Type": "text/markdown; charset=utf-8",
-        "Vary": "Accept, User-Agent",
-        "X-Robots-Tag": "noindex"
+        "Vary": "Accept, User-Agent"
       }
     },
     {
@@ -54,8 +53,7 @@
       "dest": "/$1.md",
       "headers": {
         "Content-Type": "text/markdown; charset=utf-8",
-        "Vary": "Accept, User-Agent",
-        "X-Robots-Tag": "noindex"
+        "Vary": "Accept, User-Agent"
       }
     },
     {
@@ -70,8 +68,7 @@
       "dest": "/index.md",
       "headers": {
         "Content-Type": "text/markdown; charset=utf-8",
-        "Vary": "Accept, User-Agent",
-        "X-Robots-Tag": "noindex"
+        "Vary": "Accept, User-Agent"
       }
     },
     {
@@ -86,8 +83,7 @@
       "dest": "/$1.md",
       "headers": {
         "Content-Type": "text/markdown; charset=utf-8",
-        "Vary": "Accept, User-Agent",
-        "X-Robots-Tag": "noindex"
+        "Vary": "Accept, User-Agent"
       }
     }
   ]

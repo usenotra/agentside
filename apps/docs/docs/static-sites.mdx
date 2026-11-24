@@ -179,7 +179,7 @@ await Bun.write("vercel.json", JSON.stringify(vercelRoutes(pages.map((page) => p
 The generated routes:
 
 - rewrite `/` to `/index.md` and `/pricing` or `/pricing/` to `/pricing.md` when `Accept` contains `text/markdown` or the user agent matches a known AI agent,
-- set `Content-Type: text/markdown; charset=utf-8`, `Vary: Accept, User-Agent` and `X-Robots-Tag: noindex` on every markdown response, including direct `.md` requests,
+- set `Content-Type: text/markdown; charset=utf-8` and `Vary: Accept, User-Agent` on every markdown response, and `X-Robots-Tag: noindex` only on direct `.md` requests, so AI search crawlers that get the twin on the page URL can still index the page,
 - add `Link: </pricing.md>; rel="alternate"; type="text/markdown"` and `Vary: Accept, User-Agent` to the HTML page, so agents can find the twin and the CDN cache never hands a cached HTML page to an agent.
 
 Without arguments, `vercelRoutes()` covers every path without a file extension. Pass the converted paths to rewrite only pages that have a twin, so an agent asking for a page without one still gets the HTML.

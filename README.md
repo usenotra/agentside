@@ -131,7 +131,7 @@ import { vercelRoutes } from "@usenotra/agentside/build";
 await Bun.write("vercel.json", JSON.stringify(vercelRoutes(), null, 2));
 ```
 
-Markdown responses get `Content-Type: text/markdown`, `Vary: Accept, User-Agent` and `X-Robots-Tag: noindex`, and HTML pages get a `Link` header to their twin plus `Vary: Accept, User-Agent`, so the CDN cache never serves cached HTML to an agent. Pass the list of paths (for example `pages.map((page) => page.path)` from `prerenderHtml`) to rewrite only pages that have a twin. `routes` can't be combined with `rewrites`, `redirects`, `headers`, `cleanUrls` or `trailingSlash` in the same `vercel.json`.
+Markdown responses get `Content-Type: text/markdown` and `Vary: Accept, User-Agent`, `.md` URLs also get `X-Robots-Tag: noindex`, and HTML pages get a `Link` header to their twin plus `Vary: Accept, User-Agent`, so the CDN cache never serves cached HTML to an agent. Pass the list of paths (for example `pages.map((page) => page.path)` from `prerenderHtml`) to rewrite only pages that have a twin. `routes` can't be combined with `rewrites`, `redirects`, `headers`, `cleanUrls` or `trailingSlash` in the same `vercel.json`.
 
 Framework adapters that write the Build Output API (`@astrojs/vercel`, SvelteKit's `adapter-vercel`, Nuxt's `vercel` preset) don't use `vercel.json` for this. Run `applyVercelBuildOutput({ paths })` after their build instead; it inserts the same routes into `.vercel/output/config.json` before `{ "handle": "filesystem" }`.
 
