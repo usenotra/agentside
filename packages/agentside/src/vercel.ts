@@ -26,7 +26,8 @@ export function vercelRoutes(paths?: readonly string[]) {
     },
     { has: [{ type: "header", key: "user-agent", value: `.*(${agentTokens.map(escapeRegex).join("|")}).*` }] },
   ] as const;
-  // noindex only on .md URLs: on the page URL the twin is the page itself for AI search crawlers.
+  // noindex only on .md URLs: on the page URL the twin is the page itself for AI search crawlers, and a crawler
+  // that honors the header could drop the page from its index.
   const markdownHeaders = {
     "Content-Type": "text/markdown; charset=utf-8",
     Vary: "Accept, User-Agent",

@@ -69,11 +69,12 @@ export function agentside(config: AgentsideConfig) {
     const started = performance.now();
     const path = toPagePath(pathname);
     // A twin on its own .md URL is a duplicate, so it keeps noindex. A twin served on the page URL is the page
-    // itself for AI search crawlers such as OAI-SearchBot, and noindex there would drop the page from their index.
+    // itself for AI search crawlers such as OAI-SearchBot, and a crawler that honors the header could drop the
+    // page from its index, so it only gets noindex when the config asks for it explicitly with `noindex: true`.
     // The header is removed afterwards instead of copying the config, so getters on it keep working.
     const markdown = (...args: Parameters<typeof markdownResponse>) => {
       const response = markdownResponse(...args);
-      if (onPageUrl) response.headers.delete("X-Robots-Tag");
+      if (onPageUrl && config.noindex !== true) response.headers.delete("X-Robots-Tag");
       return response;
     };
     return yield* service.serve(path, request, agent).pipe(
