@@ -60,33 +60,59 @@ export function agentside(config: AgentsideConfig) {
   const isSkipped = (pathname: string) =>
     skip.some((prefix) => pathname === prefix || pathname.startsWith(prefix.endsWith("/") ? prefix : `${prefix}/`));
 
-  const respond = Effect.fnUntraced(function* (request: Request, pathname: string, agent: Agent | null) {
+  const respond = Effect.fnUntraced(function* (
+    request: Request,
+    pathname: string,
+    agent: Agent | null,
+    onPageUrl: boolean
+  ) {
     const started = performance.now();
     const path = toPagePath(pathname);
+    // A twin on its own .md URL is a duplicate, so it keeps noindex. A twin served on the page URL is the page
+    // itself for AI search crawlers such as OAI-SearchBot, and a crawler that honors the header could drop the
+    // page from its index, so it only gets noindex when the config asks for it explicitly with `noindex: true`.
+    // The header is removed afterwards instead of copying the config, so getters on it keep working.
+    const markdown = (...args: Parameters<typeof markdownResponse>) => {
+      const response = markdownResponse(...args);
+      if (onPageUrl && config.noindex !== true) response.headers.delete("X-Robots-Tag");
+      return response;
+    };
     return yield* service.serve(path, request, agent).pipe(
       Effect.matchEffect({
         onSuccess: ({ body, tokens, variant, cached }) =>
           Effect.sync(() => {
             config.onServe?.({ path, variant, agent, status: 200, cached, durationMs: performance.now() - started });
-            return markdownResponse(request.method === "HEAD" ? "" : body, config, 200, { "X-Agentside-Variant": variant }, tokens);
+            return markdown(
+              request.method === "HEAD" ? "" : body,
+              config,
+              200,
+              { "X-Agentside-Variant": variant },
+              tokens
+            );
           }),
         onFailure: (error) =>
           Effect.sync(() => {
             if (error._tag === "NotFound") {
-              return markdownResponse(`# Not found\n\nNo markdown version of ${path} exists.\n`, config, 404);
+              return markdown(`# Not found\n\nNo markdown version of ${path} exists.\n`, config, 404);
             }
             config.onError?.(error, path);
-            return markdownResponse("# Temporarily unavailable\n\nTry again shortly.\n", config, 503, { "Retry-After": "30" });
+            return markdown("# Temporarily unavailable\n\nTry again shortly.\n", config, 503, {
+              "Retry-After": "30",
+            });
           }),
       })
     );
   });
 
-  const render = (request: Request, pathname: string, agent = detectAgent(request.headers.get("user-agent"))) =>
-    Effect.runPromise(respond(request, pathname, agent));
+  const render = (
+    request: Request,
+    pathname: string,
+    onPageUrl: boolean,
+    agent = detectAgent(request.headers.get("user-agent"))
+  ) => Effect.runPromise(respond(request, pathname, agent, onPageUrl));
 
   return {
-    serve: (request: Request, pathname = new URL(request.url).pathname) => render(request, pathname),
+    serve: (request: Request, pathname = new URL(request.url).pathname) => render(request, pathname, false),
 
     async handle(request: Request, next: () => Promise<Response>): Promise<Response> {
       if (!SERVABLE_METHODS.has(request.method)) return next();
@@ -97,14 +123,14 @@ export function agentside(config: AgentsideConfig) {
       if (!service.match(toPagePath(pathname))) return next();
 
       if (pathname.endsWith(".md")) {
-        return render(request, pathname);
+        return render(request, pathname, false);
       }
 
       const accept = request.headers.get("accept");
       const format = negotiateFormat(accept, config.accept ?? "contains");
       const agent = detectAgent(request.headers.get("user-agent"));
       if (format === "markdown" || agent) {
-        const response = await render(request, pathname, agent);
+        const response = await render(request, pathname, true, agent);
         if (response.ok) return response;
         requestHtml(request);
         return setHeaders(await next(), { Vary: "Accept, User-Agent" });

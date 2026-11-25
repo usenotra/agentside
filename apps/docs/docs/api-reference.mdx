@@ -28,7 +28,7 @@ function agentside(config: AgentsideConfig): {
 | `timeoutMs` | `number` | `5000` | Timeout for each source load, including retries. |
 | `retries` | `number` | `2` | Retries for remote sources on network errors and `408`, `429`, `500`, `502`, `503` and `504` responses. |
 | `cacheControl` | `string` | `"public, max-age=3600"` | `Cache-Control` for markdown responses. |
-| `noindex` | `boolean` | `true` | Adds `X-Robots-Tag: noindex` to markdown responses. |
+| `noindex` | `boolean` | unset | `X-Robots-Tag: noindex` on markdown responses. Unset: `handle` sends it on `.md` URLs but not on markdown it negotiates on the page URL, while `serve()` and `markdownResponse()` always send it, so pass `noindex: false` when you answer a negotiated request yourself with `markdownResponse()`. `true`: on every markdown response. `false`: never. |
 | `linkHeader` | `boolean` | `true` | Adds a `Link` header to HTML responses that have a twin. |
 | `normalize` | `boolean` | `true` | Replaces typographic Unicode with ASCII. |
 | `onServe` | `(event: ServeEvent) => void` | | Runs after every successful markdown response. |
@@ -110,7 +110,7 @@ interface ServeEvent {
 | `layer(config)` | Provides `Agentside`, requires an `HttpClient`. |
 | `layerFetch(config)` | Provides `Agentside` with the fetch `HttpClient`. |
 | `make(config)` | The Effect program behind `agentside()`, returning `{ match, serve }`. Requires an `HttpClient`. |
-| `markdownResponse(body, config, status?, extra?, tokens?)` | Builds a markdown `Response` with Agentside's headers. |
+| `markdownResponse(body, config, status?, extra?, tokens?)` | Builds a markdown `Response` with Agentside's headers, including `X-Robots-Tag: noindex` unless `config.noindex` is `false`. |
 | `CONTROL` | `"control"` |
 | `Interface`, `Match`, `Served` | The service shape and the types returned by `match` and `serve`. |
 | `prerender`, `prerenderHtml`, `applyVercelBuildOutput` | The Effect versions of the build helpers. |
@@ -241,7 +241,7 @@ import { vercelRoutes } from "@usenotra/agentside/build";
 await Bun.write("vercel.json", JSON.stringify(vercelRoutes(), null, 2));
 ```
 
-Returns Vercel's `routes` array, which runs before the static file lookup. Requests with `Accept: text/markdown` or a known AI agent user agent are rewritten to the page's `.md` file with `Content-Type: text/markdown; charset=utf-8`, `Vary: Accept, User-Agent` and `X-Robots-Tag: noindex`. Direct `.md` requests get the same headers, and HTML pages get `Link: </page.md>; rel="alternate"; type="text/markdown"` plus `Vary: Accept, User-Agent`. Without `paths` it covers every path without a file extension; with `paths` it covers only those pages.
+Returns Vercel's `routes` array, which runs before the static file lookup. Requests with `Accept: text/markdown` or a known AI agent user agent are rewritten to the page's `.md` file with `Content-Type: text/markdown; charset=utf-8` and `Vary: Accept, User-Agent`. Direct `.md` requests get the same headers plus `X-Robots-Tag: noindex`, which `vercelRoutes()` always sets because it takes no config, and HTML pages get `Link: </page.md>; rel="alternate"; type="text/markdown"` plus `Vary: Accept, User-Agent`. Without `paths` it covers every path without a file extension; with `paths` it covers only those pages.
 
 `routes` can't be combined with `rewrites`, `redirects`, `headers`, `cleanUrls` or `trailingSlash` in the same `vercel.json`.
 

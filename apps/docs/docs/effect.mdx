@@ -99,7 +99,7 @@ Operations that do I/O or run once per process are `Effect.fn` spans: `Agentside
 
 ## markdownResponse
 
-`markdownResponse(body, config, status?, extraHeaders?, tokens?)` builds a `Response` with the same headers `handle` uses: `Content-Type`, `X-Markdown-Tokens`, `Vary`, `Cache-Control`, `X-Content-Type-Options` and `X-Robots-Tag` unless `noindex` is `false`.
+`markdownResponse(body, config, status?, extraHeaders?, tokens?)` builds a `Response` with the same headers `handle` uses: `Content-Type`, `X-Markdown-Tokens`, `Vary`, `Cache-Control`, `X-Content-Type-Options` and `X-Robots-Tag` unless `noindex` is `false`. `handle` drops that header when it serves a twin on the page URL, unless `noindex` is `true`, so pass `noindex: false` when you answer a negotiated request yourself: by default `X-Robots-Tag: noindex` belongs only on `.md` URLs.
 
 ## CONTROL
 

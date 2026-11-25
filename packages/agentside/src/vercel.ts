@@ -26,15 +26,17 @@ export function vercelRoutes(paths?: readonly string[]) {
     },
     { has: [{ type: "header", key: "user-agent", value: `.*(${agentTokens.map(escapeRegex).join("|")}).*` }] },
   ] as const;
+  // noindex only on .md URLs: on the page URL the twin is the page itself for AI search crawlers, and a crawler
+  // that honors the header could drop the page from its index.
   const markdownHeaders = {
     "Content-Type": "text/markdown; charset=utf-8",
     Vary: "Accept, User-Agent",
-    "X-Robots-Tag": "noindex",
   };
+  const markdownUrlHeaders = { ...markdownHeaders, "X-Robots-Tag": "noindex" };
   const nested = paths?.filter((path) => path !== "/").map((path) => path.slice(1).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
   const pagePattern = nested ? `(${nested.join("|")})` : "((?!.*\\.).*[^/])";
   const routes = [
-    { src: "^/(.+)\\.md$", headers: markdownHeaders, continue: true },
+    { src: "^/(.+)\\.md$", headers: markdownUrlHeaders, continue: true },
     ...(!paths || paths.includes("/")
       ? [
           {
