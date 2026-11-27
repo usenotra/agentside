@@ -25,9 +25,9 @@ Set `linkHeader: false` to leave HTML responses without the `Link` header.
 
 ## The Accept header
 
-By default `handle` serves markdown whenever `Accept` contains `text/markdown`, whatever its q-value, unless that q-value is `0`. That is the only rule a CDN can express, so `handle` and the routes from [`vercelRoutes`](/static-sites#negotiating-at-the-cdn) always agree on the same request.
+By default `handle` serves markdown whenever `Accept` contains `text/markdown` or the older `text/x-markdown`, whatever its q-value, unless that q-value is `0`. That is the only rule a CDN can express, so `handle` and the routes from [`vercelRoutes`](/static-sites#negotiating-at-the-cdn) always agree on the same request.
 
-Set `accept: "q-value"` to weigh q-values instead. Agentside then compares `text/markdown` against `text/html` and `application/xhtml+xml`, with `*/*` and `text/*` counting for whichever side has no specific entry. Markdown has to score strictly higher, so a tie goes to HTML.
+Set `accept: "q-value"` to weigh q-values instead. Agentside then compares `text/markdown` and `text/x-markdown` against `text/html` and `application/xhtml+xml`, with `*/*` and `text/*` counting for whichever side has no specific entry. Markdown has to score strictly higher, so a tie goes to HTML.
 
 ```ts
 agentside({ routes, accept: "q-value" });
@@ -38,6 +38,7 @@ agentside({ routes, accept: "q-value" });
 | *(none)* | HTML | HTML |
 | `text/html,*/*;q=0.8` | HTML | HTML |
 | `text/markdown` | Markdown | Markdown |
+| `text/x-markdown` | Markdown | Markdown |
 | `text/markdown, text/html;q=0.9` | Markdown | Markdown |
 | `text/html, text/markdown` | Markdown | HTML |
 | `text/html, text/markdown;q=0.5` | Markdown | HTML |

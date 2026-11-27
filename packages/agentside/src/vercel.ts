@@ -21,8 +21,8 @@ export function vercelRoutes(paths?: readonly string[]) {
   ];
   const conditions = [
     {
-      has: [{ type: "header", key: "accept", value: ".*text/markdown.*" }],
-      missing: [{ type: "header", key: "accept", value: "^.*text/markdown\\s*;[^,]*q\\s*=\\s*0(\\.0*)?\\s*([,;].*)?$" }],
+      has: [{ type: "header", key: "accept", value: ".*text/(x-)?markdown.*" }],
+      missing: [{ type: "header", key: "accept", value: "^.*text/(x-)?markdown\\s*;[^,]*q\\s*=\\s*0(\\.0*)?\\s*([,;].*)?$" }],
     },
     { has: [{ type: "header", key: "user-agent", value: `.*(${agentTokens.map(escapeRegex).join("|")}).*` }] },
   ] as const;
